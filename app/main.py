@@ -1,7 +1,6 @@
 """Canvas for Teams - Main FastAPI Application"""
 import logging
 import sys
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -40,27 +39,11 @@ STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """FastAPI lifespan events."""
-    try:
-        logger.info("Starting Canvas for Teams API...")
-        await database.init_db()
-        logger.info("Database initialized successfully")
-        yield
-    except Exception as e:
-        logger.error(f"Error during startup: {e}", exc_info=True)
-        raise
-    finally:
-        logger.info("Shutting down Canvas for Teams API...")
-
-
 # Create FastAPI app
 app = FastAPI(
     title="Canvas for Teams API",
     description="Integration between Canvas LMS and Microsoft Teams",
     version="1.0.0",
-    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -140,9 +123,9 @@ routers_to_load = [
 for router_name, router_obj in routers_to_load:
     try:
         app.include_router(router_obj)
-        logger.info(f"✓ {router_name} router loaded")
+        logger.info(f"[OK] {router_name} router loaded")
     except Exception as e:
-        logger.error(f"✗ {router_name} router failed: {e}", exc_info=True)
+        logger.error(f"[ERROR] {router_name} router failed: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
