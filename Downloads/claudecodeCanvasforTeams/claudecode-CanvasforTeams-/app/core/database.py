@@ -14,7 +14,8 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 # Detect which implementation to use
-_USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
+_DATABASE_URL = os.getenv("DATABASE_URL")
+_USE_POSTGRES = bool(_DATABASE_URL)
 
 # SQLite-only paths
 _DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
@@ -22,6 +23,8 @@ DB_PATH = _DB_DIR / "app.db"
 
 # Seconds before a table is considered stale (10 minutes)
 STALE_THRESHOLD = 600
+
+logger.info(f"Database module loading: DATABASE_URL={'set' if _USE_POSTGRES else 'not set'}")
 
 # Lazy-loaded PostgreSQL implementation
 _db_impl = None
