@@ -40,11 +40,23 @@ INSTITUTIONAL_DOMAIN=tu_dominio
 
 ### 3. Ejecutar el Servidor
 
-```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+**Opción A: Script PowerShell (Recomendado en Windows)**
+```powershell
+.\run.ps1
 ```
 
-El sistema estará disponible en: **http://localhost:3000**
+**Opción B: Comando directo**
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 3000 --reload
+```
+
+El sistema estará disponible en: **http://localhost:3000** o **http://127.0.0.1:3000**
+
+### Endpoints Útiles
+
+- **Health Check:** http://localhost:3000/health
+- **Documentación API:** http://localhost:3000/docs
+- **Base de Datos:** `./app.db` (SQLite local)
 
 ---
 
