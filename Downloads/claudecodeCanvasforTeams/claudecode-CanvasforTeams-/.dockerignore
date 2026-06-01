@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+*.egg
+.Python
+dist
+build
+.pytest_cache
+.coverage
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node (if any frontend build)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+.tmp/
+temp/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+docs/
+CONTRIBUTING.md
+
+# Tests (optional - remove if you want to run tests in production)
+tests/
+pytest.ini
+
+# Development
+*.md
+.env.example
+start.ps1
+DEPLOY_RENDER.md
