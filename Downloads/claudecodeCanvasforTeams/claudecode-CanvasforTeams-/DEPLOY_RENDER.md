@@ -132,11 +132,62 @@ Si tienes un dominio personalizado:
 - Los datos se pierden al redeplegar
 - **Solución:** Usar una base de datos persistente (PostgreSQL, MongoDB)
 
-## Configurar Base de Datos Persistente (Recomendado)
+## Configurar Base de Datos Persistente - PostgreSQL (Recomendado)
 
-1. En Render Dashboard, crear un nuevo **PostgreSQL Database**
-2. Copiar la URL de conexión
-3. Actualizar `app/core/database.py` para usar PostgreSQL en lugar de SQLite
+La aplicación soporta **SQLite (fallback)** y **PostgreSQL (producción)**. Para migrar a PostgreSQL:
+
+### Paso 1: Crear Base de Datos PostgreSQL en Render
+
+1. En Render Dashboard → **New +** → **PostgreSQL**
+2. Configurar:
+   - **Name:** `canvas-teams-db` (o tu preferencia)
+   - **Database:** `canvas_teams` (default es bueno)
+   - **User:** (Render genera automáticamente)
+   - **Region:** (Misma que tu web service)
+3. Crear la base de datos (esperar 2-3 minutos)
+4. Copiar la **Connection String** (algo como `postgresql://user:pass@host:5432/db`)
+
+### Paso 2: Agregar DATABASE_URL al Web Service
+
+1. En Render Dashboard, ir a tu web service
+2. **Environment** → Agregar nueva variable:
+   - **Key:** `DATABASE_URL`
+   - **Value:** Pegar la connection string de PostgreSQL
+   - **Sync:** false (no compartir entre servicios)
+3. Guardar cambios
+
+### Paso 3: Redeploy Automático
+
+1. Render redeployará automáticamente con `DATABASE_URL` configurada
+2. La aplicación detectará `DATABASE_URL` y usará PostgreSQL automáticamente
+3. SQLite es fallback si `DATABASE_URL` no está definida
+
+### Paso 4: Migrar Datos (Opcional)
+
+Si tienes datos en SQLite que quieres migrar a PostgreSQL:
+
+```bash
+# Localmente (para desarrollo)
+export DATABASE_URL="postgresql://user:pass@host:5432/db"
+python scripts/migrate_sqlite_to_postgres.py
+```
+
+**Nota:** En producción (Render), esto se haría accediendo a la consola del servicio.
+
+### Verificar Migración
+
+```bash
+curl https://canvas-teams-api.onrender.com/stats
+
+# Debería mostrar conteos de usuarios, cursos, etc.
+# Ejemplo:
+# {
+#   "canvas_users": 1234,
+#   "canvas_courses": 45,
+#   "azure_users": 2000,
+#   "last_sync": 1234567890.0
+# }
+```
 
 ## Auto-Despliegue en cada Push
 
