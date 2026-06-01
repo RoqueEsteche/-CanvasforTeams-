@@ -124,60 +124,25 @@ async def ping():
     return {"pong": True}
 
 
-# Include routers
-try:
-    app.include_router(auth.router)
-    logger.info("✓ Auth router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Auth router failed: {e}")
+# Include routers with error handling
+routers_to_load = [
+    ("Auth", auth.router),
+    ("Canvas", canvas.router),
+    ("Excel", excel.router),
+    ("Ingreso", ingreso.router),
+    ("Jobs", jobs.router),
+    ("Profile", profile.router),
+    ("Sync", sync.router),
+    ("Audit", audit.router),
+    ("Web", web.router),
+]
 
-try:
-    app.include_router(canvas.router)
-    logger.info("✓ Canvas router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Canvas router failed: {e}")
-
-try:
-    app.include_router(excel.router)
-    logger.info("✓ Excel router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Excel router failed: {e}")
-
-try:
-    app.include_router(ingreso.router)
-    logger.info("✓ Ingreso router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Ingreso router failed: {e}")
-
-try:
-    app.include_router(jobs.router)
-    logger.info("✓ Jobs router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Jobs router failed: {e}")
-
-try:
-    app.include_router(profile.router)
-    logger.info("✓ Profile router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Profile router failed: {e}")
-
-try:
-    app.include_router(sync.router)
-    logger.info("✓ Sync router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Sync router failed: {e}")
-
-try:
-    app.include_router(audit.router)
-    logger.info("✓ Audit router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Audit router failed: {e}")
-
-try:
-    app.include_router(web.router)
-    logger.info("✓ Web router loaded")
-except Exception as e:
-    logger.warning(f"⚠ Web router failed: {e}")
+for router_name, router_obj in routers_to_load:
+    try:
+        app.include_router(router_obj)
+        logger.info(f"✓ {router_name} router loaded")
+    except Exception as e:
+        logger.error(f"✗ {router_name} router failed: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
