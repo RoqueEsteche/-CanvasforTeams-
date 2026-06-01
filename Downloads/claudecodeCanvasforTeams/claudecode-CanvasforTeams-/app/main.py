@@ -88,6 +88,7 @@ async def _full_db_sync() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(f"[STARTUP] 🚀 Canvas+Teams API starting — environment: {settings.environment}", flush=True)
     logger.info("🚀 USIL Canvas+Teams API starting — environment: %s", settings.environment)
 
     if settings.is_insecure_secret and settings.environment != "development":
@@ -96,11 +97,14 @@ async def lifespan(app: FastAPI):
     try:
         # Restore cache from disk (previous session)
         restored = cache.load_from_disk()
+        print(f"[STARTUP] Cache restored: {restored} entries", flush=True)
         logger.info("Cache restaurada: %d entradas desde disco", restored)
 
         # Initialize database
+        print("[STARTUP] 🔧 Initializing database...", flush=True)
         logger.info("🔧 Initializing database...")
         await database.init_db()
+        print("[STARTUP] ✅ Database initialized successfully", flush=True)
         logger.info("✅ Database initialized successfully")
 
         # Initialize audit database
@@ -111,9 +115,11 @@ async def lifespan(app: FastAPI):
 
         # Background sync to populate/refresh local DB mirror
         asyncio.create_task(_full_db_sync())
+        print("[STARTUP] ✅ Background sync started", flush=True)
         logger.info("✅ Background sync started")
 
     except Exception as e:
+        print(f"[STARTUP] ❌ Error during startup: {e}", flush=True)
         logger.error(f"❌ Error during startup: {e}", exc_info=True)
         raise
 

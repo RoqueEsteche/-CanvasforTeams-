@@ -24,7 +24,7 @@ DB_PATH = _DB_DIR / "app.db"
 # Seconds before a table is considered stale (10 minutes)
 STALE_THRESHOLD = 600
 
-logger.info(f"Database module loading: DATABASE_URL={'set' if _USE_POSTGRES else 'not set'}")
+print(f"[DATABASE] Loading module: DATABASE_URL={'set' if _USE_POSTGRES else 'not set'}", flush=True)
 
 # Lazy-loaded PostgreSQL implementation
 _db_impl = None
