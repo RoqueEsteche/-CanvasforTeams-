@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% block title %}Microsoft Teams{% endblock %}
+{% block breadcrumb %}Microsoft Teams › Teams{% endblock %}
+{% block nav_tt %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Microsoft Teams</div><div class="page-subtitle">Gestión de equipos y miembros del tenant</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-success" onclick="openCreateTeam()"><i class="bi bi-plus-circle-fill me-1"></i>Crear Team</button>
+    <button class="btn btn-primary" onclick="openExcelMembers()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Añadir miembros Excel</button>
+    <a href="/excel/template/teams-members" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header flex-wrap gap-2">
+    <input type="text" id="searchTeam" class="form-control search-box" placeholder="🔍 Buscar Team..." oninput="filterTable('searchTeam','tableWrap')">
+    <span class="ms-auto text-muted small" id="teamCount"></span>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','teams_equipos.xlsx')" title="Exportar a Excel" aria-label="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
+    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadTeams()" title="Recargar" aria-label="Recargar lista"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div id="tableWrap" class="table-responsive">
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadTeams() {
+  try {
+    const teams = await api.get('/teams/teams?top=100');
+    document.getElementById('teamCount').textContent = teams.length + ' Teams';
+
+    const html = `<table class="table table-sm table-hover mb-0">
+      <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+        <tr>
+          <th style="max-width:150px">ID</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Visibilidad</th>
+          <th style="width:180px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${teams.map(row => `
+          <tr>
+            <td style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap" title="${row.id}">
+              <span class="small text-muted" style="min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${row.id.substring(0, 20)}...</strong></span>
+              <button type="button" class="btn btn-sm btn-link p-0 copy-btn" style="color:var(--text-muted);padding:0!important;flex-shrink:0" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Team ID"><i class="bi bi-files"></i></button>
+            </td>
+            <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.displayName}</td>
+            <td class="small text-muted">${(row.description || '').substring(0, 50)}${(row.description || '').length > 50 ? '...' : ''}</td>
+            <td class="small"><span class="badge ${row.visibility === 'Public' ? 'bg-success' : 'bg-warning text-dark'}">${row.visibility || '—'}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline-info me-1 view-team-btn" title="Miembros" data-team-id="${row.id}" data-team-name="${row.displayName}"><i class="bi bi-people"></i></button>
+              <button class="btn btn-sm btn-outline-secondary me-1 channels-btn" title="Canales" data-team-id="${row.id}" data-team-name="${row.displayName}"><i class="bi bi-hash"></i></button>
+              <button class="btn btn-sm btn-outline-danger delete-team-btn" title="Eliminar" data-team-id="${row.id}" data-team-name="${row.displayName}"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('tableWrap').innerHTML = html;
+
+    // Attach event listeners
+    document.querySelectorAll('#tableWrap .copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyToClipboard(btn.dataset.copyId, btn.dataset.copyLabel);
+      });
+    });
+
+    document.querySelectorAll('#tableWrap .view-team-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewTeamDetail(btn.dataset.teamId, btn.dataset.teamName);
+      });
+    });
+
+    document.querySelectorAll('#tableWrap .channels-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewChannels(btn.dataset.teamId, btn.dataset.teamName);
+      });
+    });
+
+    document.querySelectorAll('#tableWrap .delete-team-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deleteTeam(btn.dataset.teamId, btn.dataset.teamName);
+      });
+    });
+
+  } catch(e) { toast('Error cargando Teams: ' + e.message, 'danger'); }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function _slugify(s) {
+  return s.normalize('NFKD').replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').toLowerCase().slice(0,64);
+}
+
+// Picked users registry: { owners: [{id, name, upn}], members: [{id, name, upn}] }
+let _picked = { owners: [], members: [] };
+
+function _renderPicked() {
+  const badge = (type, u) =>
+    `<span class="badge bg-${type==='owners'?'warning text-dark':'primary'} me-1 mb-1" style="font-size:.78rem">
+       ${u.name} <button type="button" class="btn-close btn-close-${type==='owners'?'dark':'white'} ms-1"
+         style="font-size:.5rem" onclick="removePicked('${type}','${u.id}')"></button>
+     </span>`;
+  document.getElementById('pickedOwners').innerHTML  = _picked.owners.map(u => badge('owners',u)).join('') || '<span class="text-muted small">Ninguno</span>';
+  document.getElementById('pickedMembers').innerHTML = _picked.members.map(u => badge('members',u)).join('') || '<span class="text-muted small">Ninguno</span>';
+}
+
+function removePicked(type, id) {
+  _picked[type] = _picked[type].filter(u => u.id !== id);
+  _renderPicked();
+}
+
+let _userSearchTimer = null;
+function searchTeamUser(q, targetType) {
+  clearTimeout(_userSearchTimer);
+  const selId = targetType + 'SearchResults';
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  if (q.length < 2) { sel.style.display = 'none'; return; }
+  _userSearchTimer = setTimeout(async () => {
+    try {
+      const users = await api.get('/teams/users?search=' + encodeURIComponent(q));
+      sel.innerHTML = users.map(u =>
+        `<option value="${u.id}" data-name="${u.displayName}" data-upn="${u.userPrincipalName}">
+           ${u.displayName} — ${u.userPrincipalName}
+         </option>`
+      ).join('');
+      sel.style.display = users.length ? '' : 'none';
+    } catch(e) { sel.style.display = 'none'; }
+  }, 400);
+}
+
+function addFromSearch(targetType) {
+  const sel = document.getElementById(targetType + 'SearchResults');
+  if (!sel || !sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  const id   = sel.value;
+  const name = opt.dataset.name;
+  const upn  = opt.dataset.upn;
+  if (!_picked[targetType].find(u => u.id === id)) {
+    _picked[targetType].push({ id, name, upn });
+    _renderPicked();
+  }
+  sel.style.display = 'none';
+  document.getElementById(targetType + 'Search').value = '';
+}
+
+function _userPicker(type, label, color) {
+  return `
+    <div class="mb-3">
+      <label class="form-label fw-semibold">${label}</label>
+      <div class="d-flex gap-2 mb-1">
+        <input class="form-control form-control-sm" id="${type}Search"
+          placeholder="Buscar por nombre o UPN…"
+          oninput="searchTeamUser(this.value,'${type}')">
+        <button type="button" class="btn btn-sm btn-${color}" onclick="addFromSearch('${type}')">
+          <i class="bi bi-plus"></i> Agregar
+        </button>
+      </div>
+      <select class="form-select form-select-sm" id="${type}SearchResults" size="3" style="display:none"
+        onchange="addFromSearch('${type}')"></select>
+      <div id="picked${type.charAt(0).toUpperCase()+type.slice(1)}" class="mt-1"></div>
+    </div>`;
+}
+
+function openCreateTeam() {
+  _picked = { owners: [], members: [] };
+  showModal('Crear Microsoft Team', `
+    <form id="teamForm">
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label">Nombre del Team *</label>
+          <input class="form-control" name="display_name" id="teamName" required
+            placeholder="Ej. Matemáticas I – 2025" oninput="autoSlug()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Visibilidad</label>
+          <select class="form-select" name="visibility">
+            <option value="Private">Privado</option>
+            <option value="Public">Público</option>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Mail nickname *
+            <span class="text-muted fw-normal small">(auto, sin espacios)</span>
+          </label>
+          <input class="form-control" name="mail_nickname" id="teamSlug" required
+            placeholder="matematicas-i-2025" pattern="[a-zA-Z0-9._-]+">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Plantilla</label>
+          <select class="form-select" name="template">
+            <option value="educationClass">Clase educativa</option>
+            <option value="standard">Estándar</option>
+            <option value="educationStaff">Personal educativo</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email del grupo <span class="text-muted small fw-normal">(opcional)</span></label>
+          <input class="form-control" name="email" type="email"
+            placeholder="Ej. matematicas@usil.edu.py">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Descripción</label>
+          <input class="form-control" name="description" placeholder="Opcional">
+        </div>
+      </div>
+      <hr class="my-3">
+      ${_userPicker('owners', '<i class="bi bi-shield-fill-check text-warning me-1"></i>Owners (propietarios) — mínimo 1 *', 'warning')}
+      ${_userPicker('members', '<i class="bi bi-people-fill text-primary me-1"></i>Miembros (opcional)', 'primary')}
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" id="saveBtn" onclick="saveTeam()">
+       <i class="bi bi-check-lg me-1"></i>Crear Team
+     </button>`);
+}
+
+function autoSlug() {
+  const slug = document.getElementById('teamSlug');
+  if (!slug._touched) slug.value = _slugify(document.getElementById('teamName').value);
+}
+document.addEventListener('input', e => {
+  if (e.target && e.target.id === 'teamSlug') e.target._touched = true;
+});
+
+async function saveTeam() {
+  const btn  = document.getElementById('saveBtn');
+  const form = document.getElementById('teamForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  if (_picked.owners.length === 0) { toast('Agregá al menos un owner', 'warning'); return; }
+
+  const fd = new FormData(form);
+  const data = {
+    display_name:  fd.get('display_name'),
+    mail_nickname: fd.get('mail_nickname'),
+    email:         fd.get('email') || null,
+    description:   fd.get('description') || null,
+    visibility:    fd.get('visibility'),
+    template:      fd.get('template'),
+    owners:        _picked.owners.map(u => u.id),
+    members:       _picked.members.map(u => u.id),
+  };
+  setLoading(btn, true);
+  toast('Creando Team… esto puede tardar hasta 60 segundos', 'info');
+  try {
+    const res = await api.post('/teams/teams', data);
+    closeModal();
+    showTeamReport(res);
+    setTimeout(loadTeams, 4000);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function showTeamReport(res) {
+  const team = res.team || {};
+  const teamId = team.id || '—';
+  const members = res.members_added || [];
+
+  const roleBadge = r => r === 'owner'
+    ? '<span class="badge bg-warning text-dark">Owner</span>'
+    : '<span class="badge bg-primary">Miembro</span>';
+  const statusBadge = s => s === 'ok'
+    ? '<span class="badge bg-success">OK</span>'
+    : `<span class="badge bg-danger">${s}</span>`;
+
+  const rows = members.map(m => `
+    <tr>
+      <td class="small">${m.displayName || '—'}</td>
+      <td class="small text-muted">${m.upn || m.user_id}</td>
+      <td>${roleBadge(m.role)}</td>
+      <td>${statusBadge(m.status)}</td>
+    </tr>`).join('');
+
+  showModal('✅ Team creado exitosamente', `
+    <div class="alert alert-success py-2 mb-3">
+      <strong>${team.displayName || 'Nuevo Team'}</strong>
+      <span class="text-muted ms-2 small">${team.visibility || ''}</span>
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">ID del Team (para vincular Canvas, etc.)</label>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control font-monospace" id="teamIdCopy" value="${teamId}" readonly>
+        <button class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('${teamId}').then(()=>toast('ID copiado','success'))">
+          <i class="bi bi-clipboard"></i> Copiar
+        </button>
+      </div>
+    </div>
+    <strong class="small">Miembros agregados (${members.length})</strong>
+    <div class="table-responsive mt-1" style="max-height:260px;overflow-y:auto">
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Nombre</th><th>UPN</th><th>Rol</th><th>Estado</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" class="text-center text-muted">Sin miembros</td></tr>'}</tbody>
+      </table>
+    </div>`,
+    `<button class="btn btn-primary" data-bs-dismiss="modal">Cerrar</button>`);
+}
+
+function viewTeamDetail(teamId, name) {
+  showModal('Miembros: ' + name, `
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+      <input class="form-control" id="addUserId" placeholder="ID de usuario Azure AD" style="max-width:300px">
+      <select class="form-select" id="addRole" style="max-width:140px">
+        <option value="member">Miembro</option>
+        <option value="owner">Owner</option>
+      </select>
+      <button class="btn btn-success" onclick="addMember('${teamId}')"><i class="bi bi-plus"></i> Añadir</button>
+    </div>
+    <div id="memberTable"><div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`);
+  loadMembers(teamId);
+}
+
+async function loadMembers(teamId) {
+  try {
+    const members = await api.get(`/teams/teams/${teamId}/members`);
+
+    const html = `<table class="table table-sm table-hover mb-0">
+      <thead style="background:var(--card-border)">
+        <tr>
+          <th style="max-width:120px">User ID</th>
+          <th>Nombre</th>
+          <th>Rol</th>
+          <th style="width:80px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${members.map(row => `
+          <tr>
+            <td style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap" title="${row.userId}">
+              <span class="small text-muted" style="min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${row.userId ? row.userId.substring(0, 15) + '...' : '—'}</strong></span>
+              ${row.userId ? `<button type="button" class="btn btn-sm btn-link p-0 copy-btn" style="color:var(--text-muted);padding:0!important;flex-shrink:0" title="Copiar ID" data-copy-id="${row.userId}" data-copy-label="User ID"><i class="bi bi-files"></i></button>` : ''}
+            </td>
+            <td class="small fw-semibold">${row.displayName}</td>
+            <td class="small"><span class="badge ${row.roles && row.roles.includes('owner') ? 'bg-warning text-dark' : 'bg-primary'}">${row.roles && row.roles.includes('owner') ? 'Owner' : 'Miembro'}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline-danger remove-member-btn" title="Quitar" data-team-id="${teamId}" data-member-id="${row.id}" data-member-name="${row.displayName}"><i class="bi bi-person-dash"></i></button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('memberTable').innerHTML = html;
+
+    // Attach event listeners
+    document.querySelectorAll('#memberTable .copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyToClipboard(btn.dataset.copyId, btn.dataset.copyLabel);
+      });
+    });
+
+    document.querySelectorAll('#memberTable .remove-member-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        removeMember(btn.dataset.teamId, btn.dataset.memberId, btn.dataset.memberName);
+      });
+    });
+  } catch(e) { document.getElementById('memberTable').innerHTML = `<p class="text-danger p-3">${e.message}</p>`; }
+}
+
+async function addMember(teamId) {
+  const userId = document.getElementById('addUserId').value.trim();
+  const role = document.getElementById('addRole').value;
+  if (!userId) return;
+  try {
+    await api.post(`/teams/teams/${teamId}/members`, { user_id: userId, role });
+    toast('Miembro añadido', 'success'); loadMembers(teamId);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+}
+
+function removeMember(teamId, membershipId, name) {
+  confirmAction(`¿Quitar a <strong>${name}</strong> del Team?`, async () => {
+    try {
+      await api.del(`/teams/teams/${teamId}/members/${membershipId}`);
+      toast('Miembro eliminado', 'success'); loadMembers(teamId);
+    } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+function viewChannels(teamId, name) {
+  showModal('Canales: ' + name, `
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+      <input class="form-control" id="channelName" placeholder="Nombre del canal" style="max-width:240px">
+      <input class="form-control" id="channelDesc" placeholder="Descripción (opcional)" style="max-width:240px">
+      <select class="form-select" id="channelType" style="max-width:140px">
+        <option value="standard">Estándar</option>
+        <option value="private">Privado</option>
+      </select>
+      <button class="btn btn-success" onclick="createChannel('${teamId}')"><i class="bi bi-plus"></i> Crear</button>
+    </div>
+    <div id="channelTable"><div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`);
+  loadChannels(teamId);
+}
+
+async function loadChannels(teamId) {
+  try {
+    const channels = await api.get(`/teams/teams/${teamId}/channels`);
+
+    const html = `<table class="table table-sm table-hover mb-0">
+      <thead style="background:var(--card-border)">
+        <tr>
+          <th style="max-width:120px">ID</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Tipo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${channels.map(row => `
+          <tr>
+            <td style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap" title="${row.id}">
+              <span class="small text-muted" style="min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${row.id.substring(0, 15)}...</strong></span>
+              <button type="button" class="btn btn-sm btn-link p-0 copy-btn" style="color:var(--text-muted);padding:0!important;flex-shrink:0" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Channel ID"><i class="bi bi-files"></i></button>
+            </td>
+            <td class="small fw-semibold"># ${row.displayName}</td>
+            <td class="small text-muted">${(row.description || '').substring(0, 40)}${(row.description || '').length > 40 ? '...' : ''}</td>
+            <td class="small"><span class="badge ${row.membershipType === 'private' ? 'bg-danger' : 'bg-secondary'}">${row.membershipType === 'private' ? 'Privado' : 'Estándar'}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('channelTable').innerHTML = html;
+
+    // Attach event listeners
+    document.querySelectorAll('#channelTable .copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyToClipboard(btn.dataset.copyId, btn.dataset.copyLabel);
+      });
+    });
+  } catch(e) { document.getElementById('channelTable').innerHTML = `<p class="text-danger p-3">${e.message}</p>`; }
+}
+
+async function createChannel(teamId) {
+  const name = document.getElementById('channelName').value.trim();
+  const desc = document.getElementById('channelDesc').value.trim();
+  const type = document.getElementById('channelType').value;
+  if (!name) { toast('Ingresa un nombre para el canal', 'warning'); return; }
+  try {
+    await api.post(`/teams/teams/${teamId}/channels`, { display_name: name, description: desc || null, membership_type: type });
+    toast('Canal creado', 'success'); loadChannels(teamId);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+}
+
+function deleteTeam(id, name) {
+  confirmAction(`¿Eliminar el Team <strong>${name}</strong>? Esta acción no se puede deshacer.`, async () => {
+    try { await api.del('/teams/teams/' + id); toast('Team eliminado', 'success'); loadTeams(); }
+    catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+function openExcelMembers() {
+  showModal('Añadir miembros a Teams desde Excel', `
+    <p class="text-muted small">Columnas requeridas: <code>team_id, user_id</code> — Opcional: <code>role</code> (member/owner)</p>
+    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
+    <div id="previewArea" class="mt-3"></div>
+    <div id="resultArea" class="mt-3"></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadMembers()"><i class="bi bi-upload me-1"></i>Importar</button>`);
+  initDropZone('dz', 'excelFile', file => {
+    readExcel(file, rows => {
+      document.getElementById('previewArea').innerHTML =
+        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
+    });
+  });
+}
+
+async function doUploadMembers() {
+  const btn = document.getElementById('uploadBtn');
+  setLoading(btn, true);
+  try {
+    const res = await uploadExcel('/excel/teams/members', 'excelFile');
+    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
+    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+loadTeams();
+</script>
+{% endblock %}

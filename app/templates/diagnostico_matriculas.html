@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Matrículas</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .test { margin: 15px 0; padding: 15px; border: 1px solid #444; border-radius: 5px; }
+        .pass { border-color: green; background: #0d2d0d; color: #90ee90; }
+        .fail { border-color: red; background: #2d0d0d; color: #ff6b6b; }
+        .warn { border-color: orange; background: #2d1d0d; color: #ffa500; }
+        .title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+        pre { background: #2d2d2d; padding: 10px; overflow: auto; max-height: 150px; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <h1>Diagnóstico de Matrículas Canvas</h1>
+
+    <div id="results"></div>
+
+    <script>
+    const results = document.getElementById('results');
+
+    function log(title, status, message, details = '') {
+        const div = document.createElement('div');
+        div.className = `test ${status}`;
+        div.innerHTML = `<div class="title">[${status.toUpperCase()}] ${title}</div>
+            <div>${message}</div>
+            ${details ? `<pre>${details}</pre>` : ''}`;
+        results.appendChild(div);
+    }
+
+    async function runDiagnostics() {
+        // Test 1: API disponible
+        try {
+            const health = await fetch('/health');
+            if (health.ok) {
+                const data = await health.json();
+                log('Servidor API', 'pass', `Disponible - Versión ${data.version}`, JSON.stringify(data, null, 2));
+            } else {
+                log('Servidor API', 'fail', `Error ${health.status}`);
+            }
+        } catch(e) {
+            log('Servidor API', 'fail', `No disponible: ${e.message}`);
+            return;
+        }
+
+        // Test 2: Cursos disponibles
+        try {
+            const coursesRes = await fetch('/canvas/courses?per_page=3');
+            const courses = await coursesRes.json();
+            if (Array.isArray(courses) && courses.length > 0) {
+                const courseList = courses.map(c => `[${c.id}] ${c.name}`).join('\n');
+                log('Cursos Canvas', 'pass', `${courses.length} cursos encontrados`, courseList);
+
+                // Test 3: Matrículas del primer curso
+                const firstCourse = courses[0];
+                try {
+                    const enrollRes = await fetch(`/canvas/courses/${firstCourse.id}/enrollments?per_page=3`);
+                    const enrollments = await enrollRes.json();
+
+                    if (Array.isArray(enrollments)) {
+                        if (enrollments.length > 0) {
+                            const enrollList = enrollments.map(e =>
+                                `Usuario: ${e.user?.name || e.user_id}, Rol: ${e.type}`
+                            ).join('\n');
+                            log(`Matrículas del curso ${firstCourse.id}`, 'pass',
+                                `${enrollments.length} matrículas encontradas`, enrollList);
+                        } else {
+                            log(`Matrículas del curso ${firstCourse.id}`, 'warn',
+                                'Sin matrículas (tabla vacía pero funcional)');
+                        }
+                    } else {
+                        log(`Matrículas del curso ${firstCourse.id}`, 'fail',
+                            'Respuesta no es un array', JSON.stringify(enrollments, null, 2));
+                    }
+                } catch(e) {
+                    log(`Matrículas del curso ${firstCourse.id}`, 'fail',
+                        `Error: ${e.message}`);
+                }
+            } else {
+                log('Cursos Canvas', 'fail', `No hay cursos o respuesta inválida`);
+            }
+        } catch(e) {
+            log('Cursos Canvas', 'fail', `Error: ${e.message}`);
+        }
+
+        // Test 4: Frontend JS disponible
+        try {
+            if (typeof api !== 'undefined') {
+                log('API Helper (main.js)', 'pass', 'Función api.get() disponible');
+            } else {
+                log('API Helper (main.js)', 'fail', 'api.get() no está definida');
+            }
+        } catch(e) {
+            log('API Helper (main.js)', 'fail', `Error: ${e.message}`);
+        }
+
+        // Test 5: Función copyToClipboard
+        try {
+            if (typeof copyToClipboard !== 'undefined') {
+                log('copyToClipboard()', 'pass', 'Función disponible');
+            } else {
+                log('copyToClipboard()', 'fail', 'Función no definida');
+            }
+        } catch(e) {
+            log('copyToClipboard()', 'fail', `Error: ${e.message}`);
+        }
+
+        // Test 6: Página enrollments.html
+        try {
+            const enrollPageRes = await fetch('/ui/canvas/enrollments');
+            if (enrollPageRes.ok) {
+                const enrollPageHtml = await enrollPageRes.text();
+                if (enrollPageHtml.includes('loadCourseOptions')) {
+                    log('Página enrollments.html', 'pass', 'Página cargable y contiene loadCourseOptions()');
+                } else {
+                    log('Página enrollments.html', 'fail', 'Página no contiene loadCourseOptions()');
+                }
+            } else {
+                log('Página enrollments.html', 'fail', `Error ${enrollPageRes.status}`);
+            }
+        } catch(e) {
+            log('Página enrollments.html', 'fail', `Error: ${e.message}`);
+        }
+
+        // Test 7: DOM ready
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            log('DOM Estado', 'pass', `Documento cargado (${document.readyState})`);
+        } else {
+            log('DOM Estado', 'warn', `Documento aún cargando (${document.readyState})`);
+        }
+
+        log('DIAGNÓSTICO', 'pass', '✓ Diagnóstico completado. Si todos los tests pasaron, ve a http://localhost:3000/ui/canvas/enrollments');
+    }
+
+    // Run diagnostics when page loads
+    window.addEventListener('load', runDiagnostics);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runDiagnostics);
+    } else {
+        runDiagnostics();
+    }
+    </script>
+</body>
+</html>

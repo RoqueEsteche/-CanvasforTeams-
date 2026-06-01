@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+{% block title %}Cursos Canvas{% endblock %}
+{% block breadcrumb %}Canvas LMS › Cursos{% endblock %}
+{% block nav_cc %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Cursos Canvas</div><div class="page-subtitle">Gestión de cursos de la plataforma</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-info" onclick="openBulkAttendanceDownload()" title="Descargar reportes de asistencia de varios cursos a la vez"><i class="bi bi-download me-1"></i>Reportes Asistencias</button>
+    <button class="btn btn-success" onclick="openCreateCourse()"><i class="bi bi-plus-circle-fill me-1"></i>Crear curso</button>
+    <button class="btn btn-primary" onclick="openExcelCourses()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel</button>
+    <a href="/excel/template/canvas-courses" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header flex-wrap gap-2">
+    <input type="text" id="searchCourse" class="form-control search-box" placeholder="🔍 Buscar curso..." oninput="applyFilters()">
+    <select id="stateFilter" class="form-select" style="max-width:160px" onchange="applyFilters()">
+      <option value="">Todos los estados</option>
+      <option value="available">Publicado</option>
+      <option value="unpublished">No publicado</option>
+      <option value="completed">Completado</option>
+      <option value="deleted">Eliminado</option>
+    </select>
+    <input type="text" id="periodFilter" class="form-control" style="max-width:160px" placeholder="📅 Período (ej. 2025)" oninput="applyFilters()">
+    <span class="ms-auto text-muted small" id="courseCount"></span>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','canvas_cursos.xlsx')" title="Exportar a Excel" aria-label="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
+    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadCourses()" title="Recargar" aria-label="Recargar lista"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div id="tableWrap" class="table-responsive">
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _allCourses = [];
+
+function applyFilters() {
+  const q      = document.getElementById('searchCourse').value.toLowerCase();
+  const state  = document.getElementById('stateFilter').value;
+  const period = document.getElementById('periodFilter').value.toLowerCase();
+  const filtered = _allCourses.filter(c => {
+    const text = JSON.stringify(c).toLowerCase();
+    if (q && !text.includes(q)) return false;
+    if (state && c.workflow_state !== state) return false;
+    if (period) {
+      const startYear = (c.start_at || '').substring(0,4);
+      const endYear   = (c.end_at   || '').substring(0,4);
+      if (!startYear.includes(period) && !endYear.includes(period) && !(c.name||'').toLowerCase().includes(period)) return false;
+    }
+    return true;
+  });
+  document.getElementById('courseCount').textContent = filtered.length + ' / ' + _allCourses.length + ' cursos';
+  renderCoursesTable(filtered);
+}
+
+function renderCoursesTable(courses) {
+  const stateBadge = (state) => {
+    const map = { available: 'success', unpublished: 'warning', completed: 'secondary', deleted: 'danger' };
+    return `<span class="badge bg-${map[state] || 'secondary'} small">${state === 'available' ? 'Publicado' : state === 'unpublished' ? 'No publicado' : state === 'completed' ? 'Completado' : 'Eliminado'}</span>`;
+  };
+
+  const html = `<table class="table table-sm table-hover mb-0" style="cursor:pointer">
+    <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Código</th>
+        <th>SIS ID</th>
+        <th>Inicio</th>
+        <th>Fin</th>
+        <th>Estado</th>
+        <th style="width:150px">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${courses.map(row => `
+        <tr class="course-row" data-course='${JSON.stringify(row).replace(/'/g,"&#x27;")}'>
+          <td class="small text-muted"><strong>${row.id}</strong> <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-btn" style="color:var(--text-muted)" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Course ID"><i class="bi bi-files"></i></button></td>
+          <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.name}</td>
+          <td class="small text-muted">${row.course_code || '—'}</td>
+          <td class="small text-muted">${row.sis_course_id || '—'}</td>
+          <td class="small">${row.start_at ? new Date(row.start_at).toLocaleDateString('es-ES') : '—'}</td>
+          <td class="small">${row.end_at ? new Date(row.end_at).toLocaleDateString('es-ES') : '—'}</td>
+          <td>${stateBadge(row.workflow_state)}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-info me-1 view-enrollments-btn" title="Matrículas" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-people"></i></button>
+            <button class="btn btn-sm btn-outline-warning me-1 attendance-btn" title="Asistencias" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-calendar-check"></i></button>
+            <button class="btn btn-sm btn-outline-danger delete-course-btn" title="Eliminar" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+
+  document.getElementById('tableWrap').innerHTML = html;
+
+  // Attach event listeners
+  document.querySelectorAll('#tableWrap .copy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyToClipboard(btn.dataset.copyId, btn.dataset.copyLabel);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .course-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const courseData = JSON.parse(row.dataset.course.replace(/&#x27;/g, "'"));
+      openEditCourse(courseData);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .view-enrollments-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      viewEnrollments(btn.dataset.courseId, btn.dataset.courseName);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .attendance-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAttendanceModal(btn.dataset.courseId, btn.dataset.courseName);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .delete-course-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteCourse(btn.dataset.courseId, btn.dataset.courseName);
+    });
+  });
+}
+
+async function loadCourses() {
+  try {
+    const courses = await api.get('/canvas/courses?per_page=100');
+    _allCourses = courses;
+    document.getElementById('courseCount').textContent = courses.length + ' cursos';
+    renderCoursesTable(courses);
+  } catch(e) { toast('Error cargando cursos: ' + e.message, 'danger'); }
+}
+
+function openCreateCourse() {
+  showModal('Crear Curso Canvas', `
+    <form id="courseForm">
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Nombre *</label><input class="form-control" name="name" required></div>
+        <div class="col-md-4"><label class="form-label">Código *</label><input class="form-control" name="course_code" required></div>
+        <div class="col-md-6"><label class="form-label">SIS Course ID</label><input class="form-control" name="sis_course_id"></div>
+        <div class="col-md-3"><label class="form-label">Inicio</label><input type="date" class="form-control" name="start_at"></div>
+        <div class="col-md-3"><label class="form-label">Fin</label><input type="date" class="form-control" name="end_at"></div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" id="saveBtn" onclick="saveCourse()"><i class="bi bi-check-lg me-1"></i>Guardar</button>`);
+}
+
+async function saveCourse() {
+  const btn = document.getElementById('saveBtn');
+  const form = document.getElementById('courseForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const fd = new FormData(form);
+  const data = {
+    name: fd.get('name'), course_code: fd.get('course_code'),
+    sis_course_id: fd.get('sis_course_id') || null,
+    start_at: fd.get('start_at') || null, end_at: fd.get('end_at') || null,
+  };
+  setLoading(btn, true);
+  try {
+    await api.post('/canvas/courses', data);
+    toast('Curso creado correctamente', 'success');
+    closeModal(); loadCourses();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function openEditCourse(c) {
+  showModal('Editar Curso: ' + c.name, `
+    <form id="editForm">
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Nombre</label><input class="form-control" name="name" value="${c.name||''}"></div>
+        <div class="col-md-4"><label class="form-label">Código</label><input class="form-control" name="course_code" value="${c.course_code||''}"></div>
+        <div class="col-md-6"><label class="form-label">SIS Course ID</label><input class="form-control" name="sis_course_id" value="${c.sis_course_id||''}"></div>
+        <div class="col-md-3"><label class="form-label">Inicio</label><input type="date" class="form-control" name="start_at" value="${(c.start_at||'').substring(0,10)}"></div>
+        <div class="col-md-3"><label class="form-label">Fin</label><input type="date" class="form-control" name="end_at" value="${(c.end_at||'').substring(0,10)}"></div>
+        <div class="col-md-6">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="event">
+            <option value="">Sin cambio</option>
+            <option value="offer">Publicar (offer)</option>
+            <option value="conclude">Concluir</option>
+            <option value="delete">Eliminar</option>
+          </select>
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-primary" id="editBtn" onclick="updateCourse('${c.id}')"><i class="bi bi-check-lg me-1"></i>Actualizar</button>`);
+}
+
+async function updateCourse(id) {
+  const btn = document.getElementById('editBtn');
+  const fd = new FormData(document.getElementById('editForm'));
+  const data = {};
+  if (fd.get('name'))         data.name        = fd.get('name');
+  if (fd.get('course_code'))  data.course_code  = fd.get('course_code');
+  if (fd.get('sis_course_id')) data.sis_course_id = fd.get('sis_course_id');
+  if (fd.get('start_at'))     data.start_at     = fd.get('start_at');
+  if (fd.get('end_at'))       data.end_at       = fd.get('end_at');
+  setLoading(btn, true);
+  try {
+    await api.put('/canvas/courses/' + id, data);
+    const event = fd.get('event');
+    if (event) await api.del('/canvas/courses/' + id + '?event=' + event);
+    toast('Curso actualizado', 'success'); closeModal(); loadCourses();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function deleteCourse(id, name) {
+  confirmAction(`¿Concluir el curso <strong>${name}</strong>?`, async () => {
+    try { await api.del('/canvas/courses/' + id + '?event=conclude'); toast('Curso concluido', 'success'); loadCourses(); }
+    catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+function viewEnrollments(courseId, name) {
+  window.location.href = '/ui/canvas/enrollments?course_id=' + courseId;
+}
+
+function openAttendanceModal(courseId, courseName) {
+  showModal(`Reporte de Asistencias: ${courseName}`, `
+    <form id="attendanceForm">
+      <div class="alert alert-info small mb-3">
+        <i class="bi bi-info-circle me-1"></i>Se cargarán todas las asistencias registradas desde la creación del curso
+      </div>
+      <div id="attendanceResults" class="mt-3"></div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+     <button class="btn btn-primary" id="loadAttendanceBtn" onclick="loadAttendanceData('${courseId}')"><i class="bi bi-search me-1"></i>Cargar asistencias</button>
+     <button class="btn btn-success" id="downloadAttendanceBtn" onclick="downloadAttendanceExcel('${courseId}','${courseName}')" style="display:none"><i class="bi bi-download me-1"></i>Descargar Excel</button>`);
+}
+
+let _currentAttendanceData = null;
+
+async function loadAttendanceData(courseId) {
+  const btn = document.getElementById('loadAttendanceBtn');
+  setLoading(btn, true);
+  try {
+    const resp = await fetch(`/canvas/courses/${courseId}/attendance`);
+    if (!resp.ok) throw new Error(`Error ${resp.status}: ${resp.statusText}`);
+    const data = await resp.json();
+
+    _currentAttendanceData = data;
+
+    if (!data.students || data.students.length === 0) {
+      document.getElementById('attendanceResults').innerHTML = '<div class="alert alert-info">No hay estudiantes matriculados en este curso</div>';
+      document.getElementById('downloadAttendanceBtn').style.display = 'none';
+      return;
+    }
+
+    const dates = Object.keys(data.dates || {}).sort();
+    const tableHtml = `
+      <div class="alert alert-success py-2 small mb-3">
+        <i class="bi bi-check-circle me-1"></i>${data.students.length} estudiantes, ${dates.length} fechas registradas
+      </div>
+      <div class="table-responsive" style="max-height:600px;overflow-y:auto;border:1px solid var(--card-border);border-radius:6px">
+        <table class="table table-sm mb-0">
+          <thead style="position:sticky;top:0;background:var(--header-bg);z-index:10">
+            <tr>
+              <th style="min-width:150px">Estudiante</th>
+              <th style="min-width:60px;text-align:center">Total</th>
+              ${dates.map(date => `<th style="font-size:0.7rem;min-width:35px;text-align:center" title="${date}">${date.substring(5)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${data.students.map(student => {
+              const attendance = (data.attendance || {})[String(student.id)] || {};
+              const total = Object.values(attendance).filter(v => v === 'P').length;
+              return `
+                <tr>
+                  <td style="min-width:150px"><strong>${student.name || 'N/A'}</strong><br><small style="color:var(--text-muted)">#${student.id}</small></td>
+                  <td style="min-width:60px;text-align:center;font-weight:bold;color:#1cc88a">${total}</td>
+                  ${dates.map(date => {
+                    const status = attendance[date];
+                    const symbol = status === 'P' ? '✓' : '✗';
+                    const bgColor = status === 'P' ? '#d4edda' : status === 'A' ? '#f8d7da' : '#e9ecef';
+                    return `<td style="min-width:35px;text-align:center;background-color:${bgColor};font-weight:bold">${symbol}</td>`;
+                  }).join('')}
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>✓ = Presente | ✗ = Ausente | – = Sin registro</div>
+    `;
+
+    document.getElementById('attendanceResults').innerHTML = tableHtml;
+    document.getElementById('downloadAttendanceBtn').style.display = 'inline-block';
+  } catch(e) {
+    toast('Error cargando asistencias: ' + e.message, 'danger');
+    document.getElementById('downloadAttendanceBtn').style.display = 'none';
+    console.error(e);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function downloadAttendanceExcel(courseId, courseName) {
+  if (!_currentAttendanceData) {
+    toast('Primero carga los datos de asistencia', 'warning');
+    return;
+  }
+
+  const data = _currentAttendanceData;
+  const dates = Object.keys(data.dates || {}).sort();
+
+  // Formato igual a Canvas Report
+  const rows = [
+    [courseName],
+    [`Docente: ${courseName}`],
+    [],
+    ['ID', 'Estudiante', ...dates, 'Total', 'Porcentaje'],
+  ];
+
+  data.students.forEach(student => {
+    const attendance = (data.attendance || {})[String(student.id)] || {};
+    const total = Object.values(attendance).filter(v => v === 'P').length;
+    const porcentaje = dates.length > 0 ? Math.round((total / dates.length) * 100) : 0;
+
+    rows.push([
+      student.id,
+      student.name || 'N/A',
+      ...dates.map(date => {
+        const status = attendance[date];
+        return status === 'P' ? 'Presente' : status === 'A' ? 'Ausente' : '';
+      }),
+      total,
+      `${porcentaje}%`
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 8 },
+    { wch: 25 },
+    ...dates.map(() => ({ wch: 12 })),
+    { wch: 8 },
+    { wch: 12 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
+  XLSX.writeFile(wb, `REPORTE_ASISTENCIA_${courseId}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function openExcelCourses() {
+  showModal('Importar cursos desde Excel', `
+    <p class="text-muted small">Columnas requeridas: <code>name, course_code</code> — Opcionales: <code>sis_course_id, start_at, end_at</code></p>
+    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
+    <div id="previewArea" class="mt-3"></div>
+    <div id="resultArea" class="mt-3"></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadCourses()"><i class="bi bi-upload me-1"></i>Importar</button>`);
+  initDropZone('dz', 'excelFile', file => {
+    readExcel(file, rows => {
+      document.getElementById('previewArea').innerHTML =
+        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
+    });
+  });
+}
+
+async function doUploadCourses() {
+  const btn = document.getElementById('uploadBtn');
+  setLoading(btn, true);
+  try {
+    const res = await uploadExcel('/excel/canvas/courses', 'excelFile');
+    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
+    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+    loadCourses();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function openBulkAttendanceDownload() {
+  const courseOptions = _allCourses.map(c =>
+    `<label class="form-check mb-2">
+      <input class="form-check-input course-checkbox" type="checkbox" value="${c.id}" data-name="${c.name}">
+      <span class="form-check-label">[${c.id}] ${c.name}</span>
+    </label>`
+  ).join('');
+
+  showModal('Descargar reportes de asistencias masivos', `
+    <p class="text-muted small mb-3">Selecciona los cursos de los cuales deseas obtener el reporte de asistencias. Se descargará un archivo Excel por cada curso.</p>
+    <div style="max-height:400px;overflow-y:auto;border:1px solid var(--card-border);padding:12px;border-radius:6px">
+      ${courseOptions || '<div class="text-muted text-center py-3">Cargando cursos...</div>'}
+    </div>
+    <div class="mt-3">
+      <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="selectAllCourses(true)"><i class="bi bi-check-all me-1"></i>Seleccionar todos</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllCourses(false)"><i class="bi bi-x me-1"></i>Deseleccionar todos</button>
+    </div>
+    <div id="bulkProgress" class="mt-3" style="display:none">
+      <div class="progress mb-2" style="height:24px">
+        <div id="progressBar" class="progress-bar bg-success" style="width:0%;line-height:24px;font-size:0.85rem">0%</div>
+      </div>
+      <div id="progressText" class="text-muted small"></div>
+    </div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-primary" id="bulkDownloadBtn" onclick="doBulkAttendanceDownload()"><i class="bi bi-download me-1"></i>Descargar seleccionados</button>`);
+}
+
+function selectAllCourses(select) {
+  document.querySelectorAll('.course-checkbox').forEach(cb => { cb.checked = select; });
+}
+
+async function doBulkAttendanceDownload() {
+  const selected = Array.from(document.querySelectorAll('.course-checkbox:checked'))
+    .map(cb => ({id: cb.value, name: cb.dataset.name}));
+
+  if (!selected.length) {
+    toast('Selecciona al menos un curso', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('bulkDownloadBtn');
+  const progress = document.getElementById('bulkProgress');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+
+  let completed = 0;
+  for (const course of selected) {
+    try {
+      const resp = await fetch(`/canvas/courses/${course.id}/attendance`);
+      if (!resp.ok) throw new Error(`Error ${resp.status}`);
+      const data = await resp.json();
+
+      // Construir Excel
+      const dates = Object.keys(data.dates || {}).sort();
+      const rows = [
+        ['Reporte de Asistencias', course.name],
+        ['Generado:', new Date().toLocaleString()],
+        [],
+        ['Estudiante', 'ID', 'Total', ...dates.map(() => '')],
+      ];
+
+      data.students.forEach(student => {
+        const attendance = (data.attendance || {})[String(student.id)] || {};
+        const total = Object.values(attendance).filter(v => v === 'P').length;
+        rows.push([
+          student.name,
+          student.id,
+          total,
+          ...dates.map(date => {
+            const status = attendance[date];
+            return status === 'P' ? 'Presente' : status === 'A' ? 'Ausente' : '';
+          })
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
+      XLSX.writeFile(wb, `asistencias_${course.id}_${course.name}.xlsx`);
+
+      completed++;
+      const percent = Math.round((completed / selected.length) * 100);
+      progressBar.style.width = percent + '%';
+      progressBar.textContent = percent + '%';
+      progressText.textContent = `Descargados ${completed} de ${selected.length} reportes...`;
+
+      // Pequeña pausa entre descargas
+      await new Promise(r => setTimeout(r, 300));
+    } catch(e) {
+      toast(`Error en curso ${course.id}: ${e.message}`, 'danger');
+      console.error(e);
+    }
+  }
+
+  progressText.innerHTML = `<i class="bi bi-check-circle text-success me-1"></i><strong>${completed} reportes descargados exitosamente</strong>`;
+  btn.disabled = false;
+}
+
+loadCourses();
+</script>
+{% endblock %}

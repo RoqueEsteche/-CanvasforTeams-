@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}USIL – Gestión TI{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/css/style.css?v=6" rel="stylesheet">
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <a href="/ui/home" style="text-decoration: none; color: inherit;">
+    <div class="sidebar-brand" style="cursor: pointer;">
+      <i class="bi bi-mortarboard-fill me-2"></i>USIL Gestión TI
+    </div>
+  </a>
+  <div class="sidebar-section">Canvas LMS</div>
+  <a href="/ui/canvas/users"       class="sidebar-link {% block nav_cu %}{% endblock %}"><i class="bi bi-people-fill"></i> Usuarios</a>
+  <a href="/ui/canvas/courses"     class="sidebar-link {% block nav_cc %}{% endblock %}"><i class="bi bi-book-fill"></i> Cursos</a>
+  <a href="/ui/canvas/attendance"  class="sidebar-link {% block nav_ca %}{% endblock %}"><i class="bi bi-clipboard-check"></i> Asistencias</a>
+  <a href="/ui/canvas/enrollments" class="sidebar-link {% block nav_ce %}{% endblock %}"><i class="bi bi-pencil-square"></i> Matrículas</a>
+  <div class="sidebar-section">Microsoft Teams</div>
+  <a href="/ui/teams/users"        class="sidebar-link {% block nav_tu %}{% endblock %}"><i class="bi bi-person-badge-fill"></i> Usuarios Azure AD</a>
+  <a href="/ui/teams/teams"        class="sidebar-link {% block nav_tt %}{% endblock %}"><i class="bi bi-microsoft-teams"></i> Teams</a>
+  <div class="sidebar-section">Herramientas</div>
+  <a href="/ui/profile"            class="sidebar-link {% block nav_pf %}{% endblock %}"><i class="bi bi-person-circle"></i> Mi perfil</a>
+  <a href="/ui/sync"               class="sidebar-link {% block nav_sy %}{% endblock %}"><i class="bi bi-arrow-left-right"></i> Sincronización</a>
+  <a href="/ui/ingreso"            class="sidebar-link {% block nav_ni %}{% endblock %}"><i class="bi bi-person-fill-add"></i> Nuevo Ingreso</a>
+  <a href="/ui/jobs"               class="sidebar-link {% block nav_jh %}{% endblock %}"><i class="bi bi-clipboard-list"></i> Historial Trabajos</a>
+</nav>
+
+<!-- Main -->
+<div id="main-content">
+  <div class="topbar">
+    <button type="button" class="btn btn-sm btn-outline-secondary me-3" onclick="toggleSidebar()" title="Menú">
+      <i class="bi bi-list fs-5"></i>
+    </button>
+
+    <span class="fw-semibold text-muted d-none d-md-inline">{% block breadcrumb %}{% endblock %}</span>
+
+    <div class="topbar-right ms-auto">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="themeToggle" title="Cambiar tema">
+        <i class="bi bi-moon-fill"></i>
+      </button>
+      {% if user %}
+        <a href="/ui/profile" class="d-flex align-items-center gap-2 text-decoration-none" title="Mi perfil">
+          <div class="topbar-avatar">{{ (user.name or '?')[:1].upper() }}</div>
+          <span class="badge bg-primary d-none d-md-inline">{{ user.name.split()[0] if user.name else 'Usuario' }}</span>
+        </a>
+        <a href="/auth/logout" class="btn btn-sm btn-outline-secondary" title="Cerrar sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </a>
+      {% else %}
+        <a href="/ui/login" class="btn btn-sm btn-primary">Iniciar sesión</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="page-body">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999"></div>
+
+<!-- Floating bulk-action bar (shown when rows are selected) -->
+<div id="bulk-bar"
+     style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+            z-index:1050;min-width:340px;max-width:600px;
+            background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.18);
+            padding:12px 20px;align-items:center;gap:14px;border:1px solid #dee2e6">
+  <i class="bi bi-check2-square fs-5 text-primary"></i>
+  <span id="bulk-count" class="fw-semibold text-dark"></span>
+  <button type="button" class="btn btn-danger btn-sm ms-auto" onclick="bulkDelete(document.getElementById('bulk-bar').dataset.container)">
+    <i class="bi bi-trash-fill me-1"></i>Eliminar seleccionados
+  </button>
+  <button type="button" class="btn btn-outline-secondary btn-sm" title="Cancelar selección" aria-label="Cancelar selección"
+          onclick="clearSelection(document.getElementById('bulk-bar').dataset.container)">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+
+<!-- Global modal -->
+<div class="modal fade" id="globalModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+    <div class="modal-content" style="max-height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="globalModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="globalModalBody" style="overflow-y: auto;"></div>
+      <div class="modal-footer" id="globalModalFooter"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/static/js/main.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

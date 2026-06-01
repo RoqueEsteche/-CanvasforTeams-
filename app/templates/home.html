@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - USIL Gestión TI{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <div style="max-width: 1000px;">
+    <!-- Hero Section -->
+    <div style="padding: 60px 40px; text-align: center; background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border-radius: 16px; color: white; margin-bottom: 40px;">
+      <h1 style="font-size: 2.5rem; margin-bottom: 12px; font-weight: 700;">
+        <i class="bi bi-mortarboard-fill" style="font-size: 2.8rem; margin-right: 12px;"></i>
+        USIL Gestión TI
+      </h1>
+      <p style="font-size: 1.2rem; margin: 0; opacity: 0.95;">
+        Plataforma de gestión integrada para Canvas LMS y Microsoft Teams
+      </p>
+    </div>
+
+    <!-- Main Features -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+
+      <!-- Dashboard -->
+      <a href="/ui" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #4e73df;">
+            <i class="bi bi-speedometer2"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Dashboard</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Panel de control con estadísticas en tiempo real de usuarios, cursos y matrículas
+          </p>
+        </div>
+      </a>
+
+      <!-- Reportes de Asistencia -->
+      <a href="/ui/canvas/attendance" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #1cc88a;">
+            <i class="bi bi-clipboard-check"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Reportes de Asistencia</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Descarga matrices de asistencia en Excel con datos actualizados
+          </p>
+        </div>
+      </a>
+
+      <!-- Gestión de Usuarios Canvas -->
+      <a href="/ui/canvas/users" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #36b9cc;">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Usuarios Canvas</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Gestión masiva de usuarios en Canvas LMS
+          </p>
+        </div>
+      </a>
+
+      <!-- Cursos -->
+      <a href="/ui/canvas/courses" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #f6c23e;">
+            <i class="bi bi-book-fill"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Cursos</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Administra y sincroniza cursos entre Canvas y Teams
+          </p>
+        </div>
+      </a>
+
+      <!-- Matrículas -->
+      <a href="/ui/canvas/enrollments" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #e74a3b;">
+            <i class="bi bi-pencil-square"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Matrículas</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Gestiona enrolaciones de estudiantes masivamente
+          </p>
+        </div>
+      </a>
+
+      <!-- Auditoría -->
+      <a href="/ui/audit" style="text-decoration: none; color: inherit;">
+        <div class="table-card" style="padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; height: 100%;">
+          <div style="font-size: 3rem; margin-bottom: 16px; color: #858796;">
+            <i class="bi bi-shield-lock"></i>
+          </div>
+          <h3 style="margin: 0 0 12px 0; color: var(--text-primary);">Auditoría</h3>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+            Registro completo de todas las actividades realizadas
+          </p>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Info Section -->
+    <div class="table-card" style="padding: 24px;">
+      <h3 style="margin-top: 0;">ℹ️ Información del Sistema</h3>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li style="margin: 8px 0;">Versión: 1.1.0</li>
+        <li style="margin: 8px 0;">Última actualización: 29 de mayo de 2026</li>
+        <li style="margin: 8px 0;">Estado: <span style="color: #1cc88a; font-weight: bold;">Operacional</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style>
+.table-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes de Asistencia{% endblock %}
+{% block nav_ca %}active{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <h1 class="page-title">📊 Reportes de Asistencia</h1>
+  <p class="page-subtitle">Descarga matrices de asistencia de tus cursos en Excel - Datos actualizados en tiempo real</p>
+
+  <!-- Info banner -->
+  <div style="margin-bottom: 20px; padding: 12px 16px; background: #e7f3ff; border-left: 4px solid #4e73df; border-radius: 6px; color: #0c4080;">
+    <i class="bi bi-info-circle"></i>
+    <strong>Datos frescos:</strong> Los reportes se actualizan cada vez que se cargan. Los cambios mensuales de asistencia se reflejan automáticamente.
+  </div>
+
+  <!-- Search and filters -->
+  <div class="table-card" style="margin-bottom: 24px; padding: 16px;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <input type="search" id="courseSearch" placeholder="Buscar curso..." class="form-control" style="max-width: 300px;">
+      <button class="btn btn-primary" onclick="refreshData()" title="Cargar datos más recientes">
+        <i class="bi bi-arrow-clockwise"></i> Refrescar
+      </button>
+      <small style="color: var(--text-muted); margin-left: auto;">
+        <span id="lastUpdate">Cargando...</span>
+      </small>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loadingState" style="display: none; text-align: center; padding: 40px;">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="text-muted">Cargando cursos...</p>
+  </div>
+
+  <!-- Courses grid -->
+  <div id="coursesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+  </div>
+
+  <!-- Empty state -->
+  <div id="emptyState" style="display: none;">
+    <div class="empty-state">
+      <i class="bi bi-inbox"></i>
+      <p>No se encontraron cursos con reportes de asistencia</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para ver detalles -->
+<div class="modal fade" id="attendanceModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="modalCourseTitle"></h5>
+          <small class="text-muted" id="modalCourseInstructor"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="attendanceTable"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="downloadExcelBtn" onclick="downloadAsExcel()">
+          <i class="bi bi-download"></i> Descargar Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allReports = [];
+let currentReport = null;
+
+function updateTimestamp() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateStr = now.toLocaleDateString('es-ES');
+  document.getElementById('lastUpdate').textContent = `Última actualización: ${dateStr} ${timeStr}`;
+}
+
+function refreshData() {
+  loadAttendanceReports();
+}
+
+async function loadAttendanceReports() {
+  const loadingState = document.getElementById('loadingState');
+  const coursesContainer = document.getElementById('coursesContainer');
+  const emptyState = document.getElementById('emptyState');
+
+  loadingState.style.display = 'block';
+  coursesContainer.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  try {
+    // Obtener lista de cursos
+    const coursesRes = await fetch('/canvas/courses?per_page=100');
+    const courses = await coursesRes.json();
+
+    allReports = [];
+
+    // Cargar reportes de asistencia para cada curso
+    const reportPromises = courses.map(async (course) => {
+      try {
+        const res = await fetch(`/canvas/attendance/from-csv/${course.id}`);
+        if (res.ok) {
+          const report = await res.json();
+          return { ...report, courseId: course.id };
+        }
+      } catch (e) {
+        // Ignorar cursos sin reporte
+      }
+      return null;
+    });
+
+    const results = await Promise.all(reportPromises);
+    allReports = results.filter(r => r !== null);
+
+    if (allReports.length === 0) {
+      emptyState.style.display = 'block';
+    } else {
+      renderCourseCards();
+    }
+    updateTimestamp();
+  } catch (error) {
+    console.error('Error cargando reportes:', error);
+    showToast('Error cargando reportes', 'error');
+  } finally {
+    loadingState.style.display = 'none';
+  }
+}
+
+function renderCourseCards() {
+  const coursesContainer = document.getElementById('coursesContainer');
+  const searchTerm = document.getElementById('courseSearch').value.toLowerCase();
+
+  const filtered = allReports.filter(r =>
+    r.course.name.toLowerCase().includes(searchTerm) ||
+    r.course.instructor.toLowerCase().includes(searchTerm)
+  );
+
+  if (filtered.length === 0) {
+    document.getElementById('emptyState').style.display = 'block';
+    coursesContainer.innerHTML = '';
+    return;
+  }
+
+  document.getElementById('emptyState').style.display = 'none';
+  coursesContainer.innerHTML = filtered.map(report => {
+    const hasData = report.summary.total_dates > 0;
+    const sourceLabel = report.summary.source === 'CSV' ? 'CSV' : 'API';
+    const sourceColor = report.summary.source === 'CSV' ? '#1cc88a' : '#4e73df';
+
+    return `
+    <div class="table-card" style="padding: 0; display: flex; flex-direction: column;">
+      <div style="padding: 16px; border-bottom: 1px solid var(--card-border); flex-grow: 1;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+          <h6 style="margin: 0; color: var(--text-primary);">${report.course.name}</h6>
+          <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: ${sourceColor}; color: white;">
+            ${sourceLabel}
+          </span>
+        </div>
+        <p style="margin: 0 0 12px 0; font-size: 0.85rem; color: var(--text-muted);">
+          <i class="bi bi-person"></i> ${report.course.instructor || 'Docente desconocido'}
+        </p>
+        <div style="display: flex; gap: 16px; font-size: 0.9rem; color: var(--text-muted);">
+          <span><i class="bi bi-people"></i> ${report.summary.total_students} estudiantes</span>
+          <span><i class="bi bi-calendar"></i> ${report.summary.total_dates} fechas</span>
+        </div>
+        ${!hasData && report.summary.source !== 'CSV' ? `
+          <div style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107;">
+            <small style="color: #856404;">⚠️ Sin datos de asistencia (obtener CSV de Canvas)</small>
+          </div>
+        ` : ''}
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--card-border); display: flex; gap: 8px;">
+        ${hasData ? `
+          <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="viewAttendanceDetail('${report.courseId}')">
+            <i class="bi bi-eye"></i> Ver
+          </button>
+        ` : `
+          <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled title="No hay datos de asistencia">
+            <i class="bi bi-eye"></i> Ver
+          </button>
+        `}
+        <button class="btn btn-sm btn-primary flex-grow-1" onclick="downloadReportExcel('${report.courseId}')" title="${hasData ? 'Descargar reporte' : 'Descargar con datos disponibles'}">
+          <i class="bi bi-download"></i> Descargar
+        </button>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function viewAttendanceDetail(courseId) {
+  currentReport = allReports.find(r => r.courseId == courseId);
+  if (!currentReport) return;
+
+  document.getElementById('modalCourseTitle').textContent = currentReport.course.name;
+  document.getElementById('modalCourseInstructor').textContent = `Docente: ${currentReport.course.instructor}`;
+
+  // Generar tabla HTML
+  const tableHtml = generateAttendanceTable(currentReport);
+  document.getElementById('attendanceTable').innerHTML = tableHtml;
+
+  // Mostrar modal
+  const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+  modal.show();
+}
+
+function generateAttendanceTable(report) {
+  const dates = report.attendance_dates;
+  const students = report.students;
+  const attendance = report.attendance;
+
+  // Header con fechas
+  let html = `
+    <div style="overflow-x: auto;">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr>
+            <th style="position: sticky; left: 0; background: var(--header-bg); z-index: 10; width: 250px;">Estudiante</th>
+  `;
+
+  dates.forEach(date => {
+    html += `<th style="text-align: center; font-size: 0.8rem;">${date}</th>`;
+  });
+
+  html += `</tr></thead><tbody>`;
+
+  // Filas de estudiantes
+  students.forEach(student => {
+    const sid = student.id.toString();
+    const studentAttendance = attendance[sid] || {};
+
+    html += `<tr>
+      <td style="position: sticky; left: 0; background: var(--card-bg); z-index: 5; font-weight: 500;">${student.name}</td>`;
+
+    dates.forEach(date => {
+      const status = studentAttendance[date] || '';
+      const statusLabel = {
+        'P': '<span style="color: #1cc88a; font-weight: bold;">P</span>',
+        'A': '<span style="color: #e74a3b; font-weight: bold;">A</span>',
+        'L': '<span style="color: #f6c23e; font-weight: bold;">L</span>',
+        'E': '<span style="color: #858796; font-weight: bold;">E</span>',
+        '': '—'
+      }[status] || status;
+
+      html += `<td style="text-align: center;">${statusLabel}</td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+
+  // Leyenda
+  html += `
+    <div style="margin-top: 16px; padding: 12px; background: var(--table-hover-bg); border-radius: 6px; font-size: 0.9rem;">
+      <strong>Leyenda:</strong>
+      <span style="margin-left: 12px;"><strong style="color: #1cc88a;">P</strong> = Presente</span>
+      <span style="margin-left: 12px;"><strong style="color: #e74a3b;">A</strong> = Ausente</span>
+      <span style="margin-left: 12px;"><strong style="color: #f6c23e;">L</strong> = Retardo</span>
+      <span style="margin-left: 12px;"><strong style="color: #858796;">E</strong> = Excusado</span>
+    </div>
+  `;
+
+  return html;
+}
+
+async function downloadReportExcel(courseId) {
+  const report = allReports.find(r => r.courseId == courseId);
+  if (!report) return;
+
+  try {
+    const response = await fetch(`/canvas/attendance/download-excel/${courseId}`);
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Asistencia_${report.course.name.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    console.error('Error descargando Excel:', error);
+    showToast('Error descargando archivo', 'error');
+  }
+}
+
+async function downloadAsExcel() {
+  if (!currentReport) return;
+  await downloadReportExcel(currentReport.courseId);
+}
+
+// Event listeners
+document.getElementById('courseSearch').addEventListener('input', renderCourseCards);
+
+// Cargar reportes al iniciar
+loadAttendanceReports();
+</script>
+
+<style>
+.table-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  transition: all .2s;
+}
+
+.table-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  border-color: var(--sidebar-accent);
+}
+
+.btn-sm {
+  font-size: 0.85rem;
+}
+</style>
+{% endblock %}

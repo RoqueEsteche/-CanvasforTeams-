@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Trabajos{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <h1 class="page-title">📋 Historial de Trabajos</h1>
+  <p class="page-subtitle">Registro de todas las operaciones realizadas: creación de usuarios, matrículas, etc.</p>
+
+  <!-- Stats -->
+  <div id="statsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  </div>
+
+  <!-- Filters -->
+  <div class="table-card" style="margin-bottom: 24px; padding: 16px;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+      <input type="date" id="dateFrom" class="form-control" style="max-width: 150px;" placeholder="Desde...">
+      <input type="date" id="dateTo" class="form-control" style="max-width: 150px;" placeholder="Hasta...">
+      <select id="jobType" class="form-control" style="max-width: 200px;">
+        <option value="">Todos los tipos</option>
+        <option value="bulk_user_create">Crear usuarios (Masivo)</option>
+        <option value="user_create">Crear usuario (Individual)</option>
+        <option value="enrollment_bulk">Matrículas (Masivo)</option>
+        <option value="enrollment_single">Matrícula (Individual)</option>
+        <option value="course_create">Crear curso</option>
+      </select>
+      <input type="text" id="usernameFilter" placeholder="Filtrar por usuario..." class="form-control" style="max-width: 200px;">
+      <button class="btn btn-primary" onclick="loadJobs()">
+        <i class="bi bi-search"></i> Buscar
+      </button>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-sm btn-outline-secondary" onclick="setToday()">Hoy</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="setThisWeek()">Esta semana</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="setThisMonth()">Este mes</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">Limpiar filtros</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="card-header">
+      <h5 style="margin: 0;">Trabajos Registrados</h5>
+    </div>
+    <div class="table-scroll">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Fecha/Hora</th>
+            <th>Tipo de Trabajo</th>
+            <th>Operación</th>
+            <th>Usuario</th>
+            <th>Estado</th>
+            <th>Resultados</th>
+            <th>Errores</th>
+          </tr>
+        </thead>
+        <tbody id="jobsTableBody">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px;">Cargando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding: 12px 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+      <small id="resultCount" style="color: var(--text-muted);">Total: 0 registros</small>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-sm btn-outline-secondary" id="prevBtn" onclick="previousPage()" disabled>← Anterior</button>
+        <button class="btn btn-sm btn-outline-secondary" id="nextBtn" onclick="nextPage()" disabled>Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize = 50;
+
+async function loadJobs() {
+  currentPage = 0;
+  await loadPage();
+}
+
+async function loadPage() {
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+  const jobType = document.getElementById('jobType').value;
+  const username = document.getElementById('usernameFilter').value;
+  const offset = currentPage * pageSize;
+
+  const params = new URLSearchParams();
+  params.append('limit', pageSize);
+  params.append('offset', offset);
+  if (dateFrom) params.append('date_from', dateFrom);
+  if (dateTo) params.append('date_to', dateTo);
+  if (jobType) params.append('job_type', jobType);
+  if (username) params.append('username', username);
+
+  try {
+    const response = await fetch(`/jobs/list?${params}`);
+    const data = await response.json();
+
+    if (!data.jobs || data.jobs.length === 0) {
+      document.getElementById('jobsTableBody').innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px;">No hay registros</td>
+        </tr>
+      `;
+      return;
+    }
+
+    // Render table
+    document.getElementById('jobsTableBody').innerHTML = data.jobs.map(job => {
+      const createdDate = new Date(job.created_at).toLocaleString('es-ES');
+      const statusBadge = getStatusBadge(job.status);
+      const jobTypeLabel = getJobTypeLabel(job.job_type);
+
+      return `
+        <tr>
+          <td style="font-size: 0.85rem;" title="${createdDate}">${createdDate}</td>
+          <td><span style="font-size: 0.8rem; padding: 2px 6px; border-radius: 3px; background: #e3e6f0;">${jobTypeLabel}</span></td>
+          <td>${job.operation}</td>
+          <td><strong>${job.username}</strong></td>
+          <td>${statusBadge}</td>
+          <td>${job.result_count || 0}</td>
+          <td style="color: ${job.error_count > 0 ? '#e74a3b' : '#1cc88a'}; font-weight: bold;">
+            ${job.error_count || 0}
+            ${job.error_message ? ` <i class="bi bi-exclamation-circle" title="${job.error_message}"></i>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Update pagination
+    document.getElementById('resultCount').textContent = `Total: ${data.total} registros (página ${currentPage + 1})`;
+    document.getElementById('prevBtn').disabled = currentPage === 0;
+    document.getElementById('nextBtn').disabled = offset + pageSize >= data.total;
+
+    // Load stats if first page
+    if (currentPage === 0) {
+      loadStats(dateFrom, dateTo);
+    }
+
+  } catch (error) {
+    console.error('Error cargando trabajos:', error);
+    document.getElementById('jobsTableBody').innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: red; padding: 40px;">Error cargando datos</td>
+      </tr>
+    `;
+  }
+}
+
+async function loadStats(dateFrom, dateTo) {
+  const params = new URLSearchParams();
+  if (dateFrom) params.append('date_from', dateFrom);
+  if (dateTo) params.append('date_to', dateTo);
+
+  try {
+    const response = await fetch(`/jobs/stats?${params}`);
+    const stats = await response.json();
+
+    const statsHtml = `
+      <div class="stat-card" style="padding: 16px;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Total Trabajos</div>
+        <div style="font-size: 1.8rem; font-weight: bold;">${stats.total_jobs || 0}</div>
+      </div>
+      <div class="stat-card" style="padding: 16px;">
+        <div style="font-size: 0.8rem; color: #1cc88a; margin-bottom: 8px;">✓ Completados</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: #1cc88a;">${stats.completed || 0}</div>
+      </div>
+      <div class="stat-card" style="padding: 16px;">
+        <div style="font-size: 0.8rem; color: #f6c23e; margin-bottom: 8px;">⚠ Con Errores</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: #f6c23e;">${stats.with_errors || 0}</div>
+      </div>
+      <div class="stat-card" style="padding: 16px;">
+        <div style="font-size: 0.8rem; color: #e74a3b; margin-bottom: 8px;">✗ Fallidos</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: #e74a3b;">${stats.failed || 0}</div>
+      </div>
+    `;
+
+    document.getElementById('statsContainer').innerHTML = statsHtml;
+
+  } catch (error) {
+    console.error('Error cargando estadísticas:', error);
+  }
+}
+
+function getStatusBadge(status) {
+  const badges = {
+    'pending': '<span style="padding: 2px 8px; border-radius: 4px; background: #858796; color: white; font-size: 0.8rem;">Pendiente</span>',
+    'processing': '<span style="padding: 2px 8px; border-radius: 4px; background: #4e73df; color: white; font-size: 0.8rem;">Procesando</span>',
+    'completed': '<span style="padding: 2px 8px; border-radius: 4px; background: #1cc88a; color: white; font-size: 0.8rem;">✓ Completado</span>',
+    'completed_with_errors': '<span style="padding: 2px 8px; border-radius: 4px; background: #f6c23e; color: white; font-size: 0.8rem;">⚠ Con Errores</span>',
+    'failed': '<span style="padding: 2px 8px; border-radius: 4px; background: #e74a3b; color: white; font-size: 0.8rem;">✗ Fallido</span>'
+  };
+  return badges[status] || `<span>${status}</span>`;
+}
+
+function getJobTypeLabel(type) {
+  const labels = {
+    'bulk_user_create': 'Crear Usuarios (Masivo)',
+    'user_create': 'Crear Usuario',
+    'enrollment_bulk': 'Matrículas (Masivo)',
+    'enrollment_single': 'Matrícula',
+    'course_create': 'Crear Curso',
+    'course_update': 'Actualizar Curso',
+    'user_update': 'Actualizar Usuario'
+  };
+  return labels[type] || type;
+}
+
+function previousPage() {
+  if (currentPage > 0) {
+    currentPage--;
+    loadPage();
+  }
+}
+
+function nextPage() {
+  currentPage++;
+  loadPage();
+}
+
+function setToday() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = today;
+  document.getElementById('dateTo').value = today;
+  loadJobs();
+}
+
+function setThisWeek() {
+  const today = new Date();
+  const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
+  document.getElementById('dateFrom').value = firstDay.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = new Date().toISOString().split('T')[0];
+  loadJobs();
+}
+
+function setThisMonth() {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('dateFrom').value = firstDay.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = new Date().toISOString().split('T')[0];
+  loadJobs();
+}
+
+function clearFilters() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('jobType').value = '';
+  document.getElementById('usernameFilter').value = '';
+  loadJobs();
+}
+
+// Load on startup
+loadJobs();
+</script>
+{% endblock %}

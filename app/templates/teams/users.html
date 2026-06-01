@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% block title %}Usuarios Azure AD{% endblock %}
+{% block breadcrumb %}Microsoft Teams › Usuarios Azure AD{% endblock %}
+{% block nav_tu %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Usuarios Azure AD</div><div class="page-subtitle">Gestión de usuarios del directorio Microsoft 365</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-success" onclick="openCreateUser()"><i class="bi bi-person-plus-fill me-1"></i>Crear usuario</button>
+    <button class="btn btn-primary" onclick="openExcelUsers()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel</button>
+    <a href="/excel/template/teams-users" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header flex-wrap gap-2">
+    <input type="text" id="searchUser" class="form-control search-box" placeholder="🔍 Buscar (nombre, UPN, email)..." oninput="onSearchInput()">
+    <select id="deptFilter" class="form-select" style="max-width:190px" onchange="renderUsers(_allUsers)">
+      <option value="">Todos los departamentos</option>
+    </select>
+    <select id="statusFilter" class="form-select" style="max-width:150px" onchange="renderUsers(_allUsers)">
+      <option value="">Todos los estados</option>
+      <option value="true">Habilitado</option>
+      <option value="false">Deshabilitado</option>
+    </select>
+    <span class="text-muted small" id="userCount"></span>
+    <span id="selBadge_tableWrap" class="badge bg-danger sel-badge"></span>
+    <span class="sel-hint ms-auto"><i class="bi bi-check2-square me-1"></i>Marca filas para eliminar en masa</span>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','teams_usuarios.xlsx')" title="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
+    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadUsers(false)" title="Recargar"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div id="tableWrap" class="table-responsive">
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _allUsers = [];
+let _searchTimer = null;
+let _loadedAll = false;
+
+const COLS = [
+  {key:'displayName', label:'Nombre'},
+  {key:'userPrincipalName', label:'UPN'},
+  {key:'mail', label:'Email'},
+  {key:'department', label:'Depto'},
+  {key:'jobTitle', label:'Cargo'},
+  {key:'accountEnabled', label:'Activo'},
+];
+const ACTIONS = row => `
+  <button class="btn btn-sm btn-outline-info me-1" title="Ver perfil completo"
+    onclick="openTeamsUserProfile('${(row.userPrincipalName||row.mail||'').replace(/'/g,"\\'")}','${(row.displayName||'').replace(/'/g,"\\'")}')">
+    <i class="bi bi-person-lines-fill"></i></button>
+  <button class="btn btn-sm btn-outline-primary me-1" title="Editar"
+    onclick="openEditUser(${JSON.stringify(row).replace(/"/g,'&quot;')})"><i class="bi bi-pencil"></i></button>
+  <button class="btn btn-sm btn-outline-danger" title="Eliminar"
+    onclick="deleteUser('${row.id}','${(row.displayName||'').replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>`;
+
+function renderUsers(users) {
+  const dept   = document.getElementById('deptFilter').value;
+  const status = document.getElementById('statusFilter').value;
+  const filtered = users.filter(u => {
+    if (dept   && u.department !== dept) return false;
+    if (status !== '' && String(u.accountEnabled) !== status) return false;
+    return true;
+  });
+  document.getElementById('userCount').textContent =
+    filtered.length + (users.length !== filtered.length ? ` / ${users.length}` : '') + ' usuarios';
+  clearSelection('tableWrap');
+
+  const html = `<table class="table table-sm table-hover mb-0" style="cursor:pointer;table-layout:auto">
+    <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+      <tr>
+        <th style="width:30px"></th>
+        <th style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ID</th>
+        <th>Nombre</th>
+        <th>UPN</th>
+        <th>Email</th>
+        <th>Depto</th>
+        <th>Cargo</th>
+        <th>Activo</th>
+        <th style="width:100px">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map(row => `
+        <tr class="user-row" data-upn="${row.userPrincipalName||row.mail||''}" data-name="${row.displayName||''}">
+          <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation(); toggleRowSelection(event, this)"></td>
+          <td style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap" title="${row.id}"><span class="small text-muted" style="min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${row.id.substring(0, 20)}...</strong></span> <button type="button" class="btn btn-sm btn-link p-0 copy-btn" style="color:var(--text-muted);flex-shrink:0" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Azure User ID"><i class="bi bi-files"></i></button></td>
+          <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.displayName}</td>
+          <td class="small text-muted">${row.userPrincipalName || '—'}</td>
+          <td class="small text-muted">${row.mail || '—'}</td>
+          <td class="small">${row.department || '—'}</td>
+          <td class="small">${row.jobTitle || '—'}</td>
+          <td><span class="badge ${row.accountEnabled ? 'bg-success' : 'bg-danger'} small">${row.accountEnabled ? 'Sí' : 'No'}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary me-1 edit-user-btn" title="Editar" data-user='${JSON.stringify(row).replace(/'/g,"&#x27;")}'><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger delete-user-btn" title="Eliminar" data-user-id="${row.id}" data-user-name="${row.displayName||''}"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+
+  document.getElementById('tableWrap').innerHTML = html;
+
+  // Attach event listeners
+  document.querySelectorAll('#tableWrap .copy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyToClipboard(btn.dataset.copyId, btn.dataset.copyLabel);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .user-row').forEach(row => {
+    row.addEventListener('click', () => {
+      openTeamsUserProfile(row.dataset.upn, row.dataset.name);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .edit-user-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const userData = JSON.parse(btn.dataset.user.replace(/&#x27;/g, "'"));
+      openEditUser(userData);
+    });
+  });
+
+  document.querySelectorAll('#tableWrap .delete-user-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteUser(btn.dataset.userId, btn.dataset.userName);
+    });
+  });
+
+  // Populate department dropdown if needed
+  if (_allUsers.length > 0 && document.getElementById('deptFilter').options.length <= 1) {
+    const depts = [...new Set(_allUsers.map(u => u.department).filter(Boolean))].sort();
+    const sel = document.getElementById('deptFilter');
+    sel.innerHTML = '<option value="">Todos los departamentos</option>';
+    depts.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; sel.appendChild(o); });
+  }
+}
+
+function onSearchInput() {
+  clearTimeout(_searchTimer);
+  const q = document.getElementById('searchUser').value.trim();
+  if (!q) { renderUsers(_allUsers); return; }
+  // Local filter first (instant)
+  const local = _allUsers.filter(u => JSON.stringify(u).toLowerCase().includes(q.toLowerCase()));
+  if (local.length > 0) renderUsers(local);
+  // Server search after 500ms (catches users not in loaded batch)
+  _searchTimer = setTimeout(async () => {
+    try {
+      document.getElementById('userCount').textContent = 'Buscando…';
+      const results = await api.get('/teams/users?search=' + encodeURIComponent(q));
+      renderUsers(results);
+    } catch(e) { toast('Error buscando: ' + e.message, 'danger'); }
+  }, 500);
+}
+
+async function loadUsers(loadAll = false) {
+  document.getElementById('tableWrap').innerHTML = '<div class="text-center py-5"><span class="spinner-border"></span><span class="ms-2 text-muted">Cargando usuarios…</span></div>';
+  document.getElementById('userCount').textContent = '';
+  try {
+    const maxRecords = loadAll ? 5000 : 200;
+    const users = await api.get(`/teams/users?max_records=${maxRecords}`);
+    _allUsers = users;
+    _loadedAll = loadAll || users.length < maxRecords;
+    renderUsers(_allUsers);
+    if (!_loadedAll) {
+      document.getElementById('userCount').textContent +=
+        ` — <a href="#" onclick="loadUsers(true);return false;" class="small">Cargar todos</a>`;
+    }
+  } catch(e) { toast('Error cargando usuarios: ' + e.message, 'danger'); }
+}
+
+function openCreateUser() {
+  showModal('Crear Usuario Azure AD', `
+    <form id="userForm">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nombre completo *</label><input class="form-control" name="display_name" required></div>
+        <div class="col-md-6"><label class="form-label">Nombre</label><input class="form-control" name="given_name"></div>
+        <div class="col-md-6"><label class="form-label">Apellido</label><input class="form-control" name="surname"></div>
+        <div class="col-md-6"><label class="form-label">UPN * <small class="text-muted">(usuario@dominio.com)</small></label><input class="form-control" name="user_principal_name" required></div>
+        <div class="col-md-6"><label class="form-label">Mail Nickname *</label><input class="form-control" name="mail_nickname" required></div>
+        <div class="col-md-6"><label class="form-label">Contraseña *</label><input type="password" class="form-control" name="password" required></div>
+        <div class="col-md-6"><label class="form-label">Departamento</label><input class="form-control" name="department"></div>
+        <div class="col-md-6"><label class="form-label">Cargo</label><input class="form-control" name="job_title"></div>
+        <div class="col-md-6">
+          <label class="form-label">Ubicación de uso *</label>
+          <input class="form-control" name="usage_location" value="PE" required placeholder="PE, US, etc.">
+        </div>
+        <div class="col-12">
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="account_enabled" id="accCheck" checked><label class="form-check-label" for="accCheck">Cuenta habilitada</label></div>
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" id="saveBtn" onclick="saveUser()"><i class="bi bi-check-lg me-1"></i>Guardar</button>`);
+}
+
+async function saveUser() {
+  const btn = document.getElementById('saveBtn');
+  const form = document.getElementById('userForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const fd = new FormData(form);
+  const data = {
+    display_name: fd.get('display_name'), given_name: fd.get('given_name') || null,
+    surname: fd.get('surname') || null, user_principal_name: fd.get('user_principal_name'),
+    mail_nickname: fd.get('mail_nickname'), password: fd.get('password'),
+    department: fd.get('department') || null, job_title: fd.get('job_title') || null,
+    usage_location: fd.get('usage_location'),
+    account_enabled: fd.get('account_enabled') === 'on',
+  };
+  setLoading(btn, true);
+  try {
+    await api.post('/teams/users', data);
+    toast('Usuario creado correctamente', 'success'); closeModal(); loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function openEditUser(u) {
+  showModal('Editar Usuario: ' + u.displayName, `
+    <form id="editForm">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nombre completo</label><input class="form-control" name="display_name" value="${u.displayName||''}"></div>
+        <div class="col-md-6"><label class="form-label">Departamento</label><input class="form-control" name="department" value="${u.department||''}"></div>
+        <div class="col-md-6"><label class="form-label">Cargo</label><input class="form-control" name="job_title" value="${u.jobTitle||''}"></div>
+        <div class="col-md-6 d-flex align-items-end">
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="account_enabled" id="eaCheck" ${u.accountEnabled?'checked':''}><label class="form-check-label" for="eaCheck">Cuenta habilitada</label></div>
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-primary" id="editBtn" onclick="updateUser('${u.id}')"><i class="bi bi-check-lg me-1"></i>Actualizar</button>`);
+}
+
+async function updateUser(id) {
+  const btn = document.getElementById('editBtn');
+  const fd = new FormData(document.getElementById('editForm'));
+  const data = {};
+  if (fd.get('display_name')) data.display_name = fd.get('display_name');
+  if (fd.get('department'))   data.department   = fd.get('department');
+  if (fd.get('job_title'))    data.job_title    = fd.get('job_title');
+  data.account_enabled = fd.get('account_enabled') === 'on';
+  setLoading(btn, true);
+  try {
+    await api.patch('/teams/users/' + id, data);
+    toast('Usuario actualizado', 'success'); closeModal(); loadUsers(false);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function deleteUser(id, name) {
+  confirmAction(`¿Eliminar el usuario <strong>${name}</strong> de Azure AD? Esta acción no se puede deshacer.`, async () => {
+    try { await api.del('/teams/users/' + id); toast('Usuario eliminado', 'success'); loadUsers(false); }
+    catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+function openExcelUsers() {
+  showModal('Importar usuarios desde Excel', `
+    <p class="text-muted small">Columnas requeridas: <code>display_name, user_principal_name, mail_nickname, password, usage_location</code></p>
+    <p class="text-muted small">Opcionales: <code>given_name, surname, department, job_title</code></p>
+    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
+    <div id="previewArea" class="mt-3"></div>
+    <div id="resultArea" class="mt-3"></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadUsers()"><i class="bi bi-upload me-1"></i>Importar</button>`);
+  initDropZone('dz', 'excelFile', file => {
+    readExcel(file, rows => {
+      document.getElementById('previewArea').innerHTML =
+        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
+    });
+  });
+}
+
+async function doUploadUsers() {
+  const btn = document.getElementById('uploadBtn');
+  setLoading(btn, true);
+  try {
+    const res = await uploadExcel('/excel/teams/users', 'excelFile');
+    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
+    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+    loadUsers(false);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+async function openTeamsUserProfile(email, name) {
+  showModal(``,
+    `<div class="text-center py-4"><span class="spinner-border"></span><div class="text-muted small mt-2">Cargando perfil…</div></div>`, '');
+  try {
+    const data = await api.get('/profile/lookup?email=' + encodeURIComponent(email));
+    const c = data.canvas;
+    const t = data.teams;
+    const cu = c?.user || {};
+    const tu = t?.user || {};
+
+    const VCLS = { Public:'bg-success', Private:'bg-warning text-dark', HiddenMembership:'bg-info text-dark' };
+    const VLBL = { Public:'Público', Private:'Privado', HiddenMembership:'Org.' };
+    const RLBL = { TeacherEnrollment:'Docente', StudentEnrollment:'Alumno', TaEnrollment:'TA', ObserverEnrollment:'Observador' };
+    const RCLS = { TeacherEnrollment:'bg-warning text-dark', StudentEnrollment:'bg-primary', TaEnrollment:'bg-info text-dark', ObserverEnrollment:'bg-secondary' };
+    const SCLS = { active:'bg-success', invited:'bg-warning text-dark', completed:'bg-secondary', inactive:'bg-danger' };
+
+    // ── Avatar ─────────────────────────────────────────────────
+    const initials = (name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const avatarBg = 'var(--sidebar-accent)';
+
+    // ── Stats ──────────────────────────────────────────────────
+    const canvasCount = c?.enrollments?.length || 0;
+    const teamsCount  = t?.teams?.length  || 0;
+    const docCount = (c?.enrollments || []).filter(e => e.role === 'TeacherEnrollment').length;
+    const groupCount  = c?.groups?.length || 0;
+
+    const enrollRows = (c?.enrollments || []).map(e => `
+      <tr>
+        <td class="small text-muted">${e.course_code||'—'}</td>
+        <td class="small">${e.course_name}</td>
+        <td class="small">${e.program||'—'}</td>
+        <td class="small">${e.year||'—'}</td>
+        <td><span class="badge ${RCLS[e.role]||'bg-secondary'}">${RLBL[e.role]||e.role}</span></td>
+        <td><span class="badge ${SCLS[e.enrollment_state]||'bg-secondary'}">${e.enrollment_state||'—'}</span></td>
+      </tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Sin inscripciones</td></tr>';
+
+    const teamsHtml = (t?.teams || []).map(tm => {
+      const vc = VCLS[tm.visibility]||'bg-secondary';
+      const vl = VLBL[tm.visibility]||tm.visibility||'—';
+      const ch = (tm.channels||[]).slice(0,6).map(c=>`<span class="badge bg-light text-dark border" style="font-size:.65rem">${c.displayName}</span>`).join(' ');
+      return `<div class="border rounded p-2 mb-2">
+        <div class="d-flex justify-content-between mb-1"><span class="small fw-semibold">${tm.displayName}</span><span class="badge ${vc}">${vl}</span></div>
+        ${ch ? `<div class="d-flex flex-wrap gap-1">${ch}</div>` : ''}
+      </div>`;
+    }).join('') || '<p class="text-muted small">Sin membresías en Teams</p>';
+
+    document.getElementById('globalModalBody').innerHTML = `
+      <!-- Header profesional -->
+      <div style="background:var(--card-bg);padding:24px;border-radius:8px;margin-bottom:20px;border:1px solid var(--card-border)">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+          <div style="width:72px;height:72px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:1.5rem;flex-shrink:0">${initials}</div>
+          <div class="flex-grow-1">
+            <h5 class="mb-1" style="font-weight:600">${name}</h5>
+            <div class="text-muted small mb-2">${email || tu.userPrincipalName || '—'}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${tu.userPrincipalName ? `<span class="badge bg-light text-dark border"><i class="bi bi-envelope me-1"></i>${tu.userPrincipalName}</span>` : ''}
+              ${tu.department ? `<span class="badge bg-light text-dark border"><i class="bi bi-person-badge-fill me-1" style="color:#6264a7"></i>${tu.department}</span>` : ''}
+              ${tu.accountEnabled === false ? `<span class="badge bg-danger">Cuenta deshabilitada</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:var(--sidebar-accent)">${canvasCount}</div>
+          <div class="small text-muted">Cursos</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#ffc107">${docCount}</div>
+          <div class="small text-muted">Como docente</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#6264a7">${teamsCount}</div>
+          <div class="small text-muted">Teams</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#0d6efd">${groupCount}</div>
+          <div class="small text-muted">Grupos</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-3" id="tProfileTabs">
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tc-tab" style="cursor:pointer">
+            <i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas <span class="badge bg-warning text-dark ms-1">${canvasCount}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link active" data-tab="tt-tab" style="cursor:pointer">
+            <i class="bi bi-microsoft-teams me-1" style="color:#6264a7"></i>Teams <span class="badge ms-1" style="background:#6264a7">${teamsCount}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Canvas tab -->
+      <div id="tc-tab" style="display:none">
+        <div class="mb-3">
+          <strong class="small d-block mb-2">Información Canvas</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${cu.login_id ? `<span class="badge bg-light text-dark border">Login: ${cu.login_id}</span>` : ''}
+            ${cu.sis_user_id ? `<span class="badge bg-light text-dark border">CI: ${cu.sis_user_id}</span>` : ''}
+            ${!c ? '<span class="text-muted small">Usuario no encontrado en Canvas</span>' : ''}
+          </div>
+        </div>
+        <div>
+          <strong class="small d-block mb-2">Inscripciones (${canvasCount})</strong>
+          <div style="max-height:300px;overflow-y:auto;border:1px solid var(--card-border);border-radius:6px">
+            <table class="table table-sm table-hover mb-0">
+              <thead style="background:var(--card-border)">
+                <tr><th style="font-size:0.75rem">Código</th><th style="font-size:0.75rem">Nombre del curso</th><th style="font-size:0.75rem">Programa</th><th style="font-size:0.75rem">Año</th><th style="font-size:0.75rem">Rol</th><th style="font-size:0.75rem">Estado</th></tr>
+              </thead>
+              <tbody>${enrollRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teams tab -->
+      <div id="tt-tab">
+        <div class="mb-3">
+          <strong class="small d-block mb-2">Información Teams / Azure AD</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${tu.userPrincipalName ? `<span class="badge bg-light text-dark border"><i class="bi bi-envelope me-1"></i>${tu.userPrincipalName}</span>` : ''}
+            <span class="badge ${tu.accountEnabled?'bg-success':'bg-danger'}">${tu.accountEnabled?'Activo':'Inactivo'}</span>
+            ${tu.department ? `<span class="badge bg-light text-dark border">${tu.department}</span>` : ''}
+            ${tu.jobTitle   ? `<span class="badge bg-light text-dark border">${tu.jobTitle}</span>`   : ''}
+            ${tu.officeLocation ? `<span class="badge bg-light text-dark border"><i class="bi bi-geo-alt me-1"></i>${tu.officeLocation}</span>` : ''}
+            ${tu.mobilePhone||tu.phone ? `<span class="badge bg-light text-dark border"><i class="bi bi-telephone me-1"></i>${tu.mobilePhone||tu.phone}</span>` : ''}
+          </div>
+        </div>
+        <div>
+          <strong class="small d-block mb-2">Equipos (${teamsCount})</strong>
+          <div style="max-height:350px;overflow-y:auto">${teamsHtml}</div>
+        </div>
+      </div>`;
+
+    document.querySelectorAll('#tProfileTabs .nav-link').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#tProfileTabs .nav-link').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tc-tab').style.display = btn.dataset.tab === 'tc-tab' ? '' : 'none';
+        document.getElementById('tt-tab').style.display = btn.dataset.tab === 'tt-tab' ? '' : 'none';
+      });
+    });
+
+    // Update modal title with proper styling
+    document.getElementById('globalModalTitle').innerHTML = `<i class="bi bi-person-circle me-2"></i>${name}`;
+  } catch(e) {
+    document.getElementById('globalModalBody').innerHTML =
+      `<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Error cargando perfil: ${e.message}</div>`;
+  }
+}
+
+async function bulkDelete(containerId) {
+  const ids = getSelectedIds(containerId || 'tableWrap');
+  if (!ids.length) return;
+  confirmAction(`¿Eliminar <strong>${ids.length} usuario(s)</strong> de Azure AD? Esta acción no se puede deshacer.`, async () => {
+    try {
+      const res = await api.del_body('/teams/users/bulk', { ids });
+      toast(`${res.succeeded.length} eliminados, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+      loadUsers(false);
+    } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+loadUsers(false);
+</script>
+{% endblock %}

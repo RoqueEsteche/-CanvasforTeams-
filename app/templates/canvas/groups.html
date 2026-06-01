@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Grupos Canvas{% endblock %}
+{% block breadcrumb %}Canvas LMS › Grupos{% endblock %}
+{% block nav_cg %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Grupos Canvas</div><div class="page-subtitle">Gestión de grupos de la cuenta</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-success" onclick="openCreateGroup()"><i class="bi bi-plus-circle-fill me-1"></i>Crear grupo</button>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header flex-wrap gap-2">
+    <input type="text" id="searchGroup" class="form-control search-box" placeholder="🔍 Buscar grupo..." oninput="filterTable('searchGroup','tableWrap')">
+    <span class="ms-auto text-muted small" id="groupCount"></span>
+    <button class="btn btn-sm btn-outline-primary" onclick="loadGroups()"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div id="tableWrap" class="table-responsive">
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadGroups() {
+  try {
+    const groups = await api.get('/canvas/groups?per_page=100');
+    document.getElementById('groupCount').textContent = groups.length + ' grupos';
+
+    const accessMap = { invitation_only: 'Solo invitación', parent_context_auto_join: 'Auto-join', parent_context_request: 'Solicitud' };
+
+    const html = `<table class="table table-sm table-hover mb-0">
+      <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Miembros</th>
+          <th>Acceso</th>
+          <th>SIS ID</th>
+          <th style="width:120px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${groups.map(row => `
+          <tr>
+            <td class="small text-muted"><strong>${row.id}</strong> <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-btn" style="color:var(--text-muted);padding:0!important" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Group ID"><i class="bi bi-files"></i></button></td>
+            <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.name}</td>
+            <td class="small text-muted">${row.members_count || 0}</td>
+            <td class="small">${accessMap[row.join_level] || row.join_level}</td>
+            <td class="small text-muted">${row.sis_group_id || '—'}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-info me-1 view-members-btn" title="Miembros" data-group-id="${row.id}" data-group-name="${row.name}"><i class="bi bi-people"></i></button>
+              <button class="btn btn-sm btn-outline-danger delete-group-btn" title="Eliminar" data-group-id="${row.id}" data-group-name="${row.name}"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('tableWrap').innerHTML = html;
+
+    // Attach event listeners
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.copyId;
+        const label = btn.dataset.copyLabel;
+        copyToClipboard(id, label);
+      });
+    });
+    document.querySelectorAll('.view-members-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewMembers(btn.dataset.groupId, btn.dataset.groupName);
+      });
+    });
+    document.querySelectorAll('.delete-group-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deleteGroup(btn.dataset.groupId, btn.dataset.groupName);
+      });
+    });
+  } catch(e) { toast('Error cargando grupos: ' + e.message, 'danger'); }
+}
+
+function openCreateGroup() {
+  showModal('Crear Grupo Canvas', `
+    <form id="groupForm">
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Nombre *</label><input class="form-control" name="name" required></div>
+        <div class="col-md-4"><label class="form-label">SIS Group ID</label><input class="form-control" name="sis_group_id"></div>
+        <div class="col-md-8"><label class="form-label">Descripción</label><input class="form-control" name="description"></div>
+        <div class="col-md-4">
+          <label class="form-label">Acceso</label>
+          <select class="form-select" name="join_level">
+            <option value="invitation_only">Solo invitación</option>
+            <option value="parent_context_auto_join">Auto-join por contexto</option>
+            <option value="parent_context_request">Solicitud por contexto</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="is_public" id="pubCheck"><label class="form-check-label" for="pubCheck">Grupo público</label></div>
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" id="saveBtn" onclick="saveGroup()"><i class="bi bi-check-lg me-1"></i>Guardar</button>`);
+}
+
+async function saveGroup() {
+  const btn = document.getElementById('saveBtn');
+  const form = document.getElementById('groupForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const fd = new FormData(form);
+  const data = {
+    name: fd.get('name'), description: fd.get('description') || null,
+    sis_group_id: fd.get('sis_group_id') || null,
+    join_level: fd.get('join_level'),
+    is_public: fd.get('is_public') === 'on',
+  };
+  setLoading(btn, true);
+  try {
+    await api.post('/canvas/groups', data);
+    toast('Grupo creado', 'success'); closeModal(); loadGroups();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function viewMembers(groupId, name) {
+  showModal('Miembros del grupo: ' + name, `
+    <div class="mb-3 d-flex gap-2">
+      <input class="form-control" id="addMemberId" placeholder="ID o sis_login_id:xxx del usuario">
+      <button class="btn btn-success" onclick="addMember('${groupId}')"><i class="bi bi-plus"></i> Añadir</button>
+    </div>
+    <div id="memberTable"><div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`);
+  loadGroupMembers(groupId);
+}
+
+async function loadGroupMembers(groupId) {
+  try {
+    const members = await api.get(`/canvas/groups/${groupId}/members`);
+
+    const html = `<table class="table table-sm table-hover mb-0">
+      <thead style="background:var(--card-border)">
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Login</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${members.map(row => `
+          <tr>
+            <td class="small text-muted"><strong>${row.id}</strong> <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-btn" style="color:var(--text-muted);padding:0!important" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Member ID"><i class="bi bi-files"></i></button></td>
+            <td class="small fw-semibold">${row.name}</td>
+            <td class="small text-muted">${row.login_id || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('memberTable').innerHTML = html;
+
+    // Attach copy button listeners
+    document.querySelectorAll('#memberTable .copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.copyId;
+        const label = btn.dataset.copyLabel;
+        copyToClipboard(id, label);
+      });
+    });
+  } catch(e) { document.getElementById('memberTable').innerHTML = `<p class="text-danger p-3">${e.message}</p>`; }
+}
+
+async function addMember(groupId) {
+  const userId = document.getElementById('addMemberId').value.trim();
+  if (!userId) return;
+  try {
+    await api.post(`/canvas/groups/${groupId}/members`, { user_ids: [userId] });
+    toast('Miembro añadido', 'success'); loadGroupMembers(groupId);
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+}
+
+function deleteGroup(id, name) {
+  confirmAction(`¿Eliminar el grupo <strong>${name}</strong>? Esta acción no se puede deshacer.`, async () => {
+    try { await api.del('/canvas/groups/' + id); toast('Grupo eliminado', 'success'); loadGroups(); }
+    catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+loadGroups();
+</script>
+{% endblock %}

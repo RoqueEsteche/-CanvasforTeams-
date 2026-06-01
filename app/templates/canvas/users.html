@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% block title %}Usuarios Canvas{% endblock %}
+{% block breadcrumb %}Canvas LMS › Usuarios{% endblock %}
+{% block nav_cu %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Usuarios Canvas</div><div class="page-subtitle">Gestión de usuarios de la plataforma</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button type="button" class="btn btn-success" onclick="openCreateUser()"><i class="bi bi-person-plus-fill me-1"></i>Crear usuario</button>
+    <button type="button" class="btn btn-primary" onclick="openExcelUsers()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel</button>
+    <a href="/excel/template/canvas-users" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header flex-wrap gap-2">
+    <input type="text" id="searchUser" class="form-control search-box" placeholder="🔍 Buscar usuario..." oninput="filterTable('searchUser','tableWrap')">
+    <span class="text-muted small" id="userCount"></span>
+    <span id="selBadge_tableWrap" class="badge bg-danger sel-badge"></span>
+    <span class="sel-hint ms-auto"><i class="bi bi-check2-square me-1"></i>Marca filas para eliminar en masa</span>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','canvas_usuarios.xlsx')" title="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
+    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadUsers()" title="Recargar"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div id="tableWrap" class="table-responsive">
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadUsers() {
+  clearSelection('tableWrap');
+  try {
+    const users = await api.get('/canvas/users?per_page=100');
+    document.getElementById('userCount').textContent = users.length + ' usuarios';
+
+    const html = `<table class="table table-sm table-hover mb-0" style="cursor:pointer">
+      <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+        <tr>
+          <th style="width:30px"></th>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Login</th>
+          <th>SIS ID</th>
+          <th style="width:100px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${users.map(row => `
+          <tr onclick="openUserProfile('${row.id}','${(row.email||row.login_id||'').replace(/'/g,"\\'")}','${row.name.replace(/'/g,"\\'")}')">
+            <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation(); toggleRowSelection(event, this)"></td>
+            <td class="small text-muted"><strong>${row.id}</strong> <button type="button" class="btn btn-sm btn-link p-0 ms-1" style="color:var(--text-muted)" title="Copiar ID" onclick="event.stopPropagation(); copyToClipboard('${row.id}', 'Canvas User ID')"><i class="bi bi-files"></i></button></td>
+            <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.name}</td>
+            <td class="small text-muted">${row.email || '—'}</td>
+            <td class="small">${row.login_id || '—'}</td>
+            <td class="small text-muted">${row.sis_user_id || '—'}</td>
+            <td onclick="event.stopPropagation()">
+              <button type="button" class="btn btn-sm btn-outline-primary me-1" title="Editar" onclick="openEditUser(${JSON.stringify(row).replace(/"/g,'&quot;')})"><i class="bi bi-pencil"></i></button>
+              <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="deleteUser('${row.id}','${row.name}')"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+    document.getElementById('tableWrap').innerHTML = html;
+  } catch(e) { toast('Error cargando usuarios: ' + e.message, 'danger'); }
+}
+
+async function bulkDelete(containerId) {
+  const ids = getSelectedIds(containerId || 'tableWrap');
+  if (!ids.length) return;
+  confirmAction(`¿Eliminar <strong>${ids.length} usuario(s)</strong> de Canvas? Esta acción no se puede deshacer.`, async () => {
+    try {
+      const res = await api.del_body('/canvas/users/bulk', { ids });
+      toast(`${res.succeeded.length} eliminados, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+      loadUsers();
+    } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+const _ROLE_MAP = {
+  TeacherEnrollment:  { label: 'Docente',     cls: 'bg-warning text-dark' },
+  StudentEnrollment:  { label: 'Alumno',       cls: 'bg-primary'          },
+  TaEnrollment:       { label: 'TA',           cls: 'bg-info text-dark'   },
+  ObserverEnrollment: { label: 'Observador',   cls: 'bg-secondary'        },
+};
+const _STATE_MAP = {
+  active:    { label: 'Activo',     cls: 'bg-success'           },
+  invited:   { label: 'Invitado',   cls: 'bg-warning text-dark' },
+  completed: { label: 'Completado', cls: 'bg-secondary'         },
+  inactive:  { label: 'Inactivo',   cls: 'bg-danger'            },
+};
+function _rb(role)  { const r = _ROLE_MAP[role]  || { label: role  || '—', cls: 'bg-secondary' }; return `<span class="badge ${r.cls}">${r.label}</span>`; }
+function _sb(state) { const s = _STATE_MAP[state] || { label: state || '—', cls: 'bg-secondary' }; return `<span class="badge ${s.cls}">${s.label}</span>`; }
+
+async function openUserProfile(canvasId, email, name) {
+  showModal(``,
+    `<div class="text-center py-4"><span class="spinner-border"></span><div class="text-muted small mt-2">Cargando perfil…</div></div>`, '');
+
+  const params = new URLSearchParams();
+  if (canvasId) params.set('canvas_id', canvasId);
+  if (email)    params.set('email', email);
+
+  try {
+    const data = await api.get('/profile/lookup?' + params.toString());
+    const c = data.canvas;
+    const t = data.teams;
+    const cu = c?.user || {};
+    const tu = t?.user || {};
+
+    // ── Tabs header ────────────────────────────────────────────
+    const canvasCount = c?.enrollments?.length || 0;
+    const teamsCount  = t?.teams?.length  || 0;
+    const groupCount  = c?.groups?.length || 0;
+    const docCount = (c?.enrollments || []).filter(e => e.role === 'TeacherEnrollment').length;
+
+    // ── Avatar ─────────────────────────────────────────────────
+    const initials = (name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const avatarBg = 'var(--sidebar-accent)';
+
+    // ── Canvas enrollments table ───────────────────────────────
+    const enrollRows = (c?.enrollments || []).map(e => `
+      <tr>
+        <td class="small text-muted">${e.course_code || '—'}</td>
+        <td class="small">${e.course_name}</td>
+        <td class="small">${e.program || '—'}</td>
+        <td class="small">${e.year || '—'}</td>
+        <td>${_rb(e.role)}</td>
+        <td>${_sb(e.enrollment_state)}</td>
+      </tr>`).join('')
+      || '<tr><td colspan="6" class="text-center text-muted py-3">Sin inscripciones</td></tr>';
+
+    // ── Canvas groups ──────────────────────────────────────────
+    const groupHtml = (c?.groups || []).map(g =>
+      `<span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-people-fill me-1 text-primary"></i>${g.name || 'Sin nombre'}</span>`
+    ).join('') || '<span class="text-muted small">Sin grupos</span>';
+
+    // ── Teams list ─────────────────────────────────────────────
+    const VISIB_CLS = { Public: 'bg-success', Private: 'bg-warning text-dark', HiddenMembership: 'bg-info text-dark' };
+    const VISIB_LBL = { Public: 'Público', Private: 'Privado', HiddenMembership: 'Org.' };
+    const teamsHtml = (t?.teams || []).map(tm => {
+      const visCls = VISIB_CLS[tm.visibility] || 'bg-secondary';
+      const visLbl = VISIB_LBL[tm.visibility] || tm.visibility || '—';
+      const chList = (tm.channels || []).slice(0, 6).map(ch =>
+        `<span class="badge bg-light text-dark border" style="font-size:.65rem">${ch.displayName}</span>`
+      ).join(' ');
+      return `
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold">${tm.displayName}</span>
+            <span class="badge ${visCls}">${visLbl}</span>
+          </div>
+          ${chList ? `<div class="d-flex flex-wrap gap-1">${chList}</div>` : ''}
+        </div>`;
+    }).join('') || '<p class="text-muted small">Sin membresías en Teams</p>';
+
+    // ── Modal body with professional header ──────────────────────
+    document.getElementById('globalModalBody').innerHTML = `
+      <!-- Header profesional -->
+      <div style="background:var(--card-bg);padding:24px;border-radius:8px;margin-bottom:20px;border:1px solid var(--card-border)">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+          <div style="width:72px;height:72px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:1.5rem;flex-shrink:0">${initials}</div>
+          <div class="flex-grow-1">
+            <h5 class="mb-1" style="font-weight:600">${name}</h5>
+            <div class="text-muted small mb-2">${email || '—'}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${cu.id ? `<span class="badge bg-light text-dark border"><i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas ID ${cu.id}</span>` : ''}
+              ${tu.department ? `<span class="badge bg-light text-dark border"><i class="bi bi-person-badge-fill me-1" style="color:#6264a7"></i>${tu.department}</span>` : ''}
+              ${tu.accountEnabled === false ? `<span class="badge bg-danger">Cuenta deshabilitada</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:var(--sidebar-accent)">${canvasCount}</div>
+          <div class="small text-muted">Cursos</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#ffc107">${docCount}</div>
+          <div class="small text-muted">Como docente</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#6264a7">${teamsCount}</div>
+          <div class="small text-muted">Teams</div>
+        </div>
+        <div style="background:var(--card-bg);padding:16px;border-radius:8px;text-align:center;border:1px solid var(--card-border)">
+          <div style="font-size:1.8rem;font-weight:bold;color:#0d6efd">${groupCount}</div>
+          <div class="small text-muted">Grupos</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-3" id="profileTabs">
+        <li class="nav-item">
+          <button class="nav-link active" data-tab="c-tab" style="cursor:pointer">
+            <i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas
+            <span class="badge bg-warning text-dark ms-1">${canvasCount}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="t-tab" style="cursor:pointer">
+            <i class="bi bi-microsoft-teams me-1" style="color:#6264a7"></i>Teams
+            <span class="badge ms-1" style="background:#6264a7">${teamsCount}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Canvas tab -->
+      <div id="c-tab">
+        <div class="mb-3">
+          <strong class="small d-block mb-2">Información Canvas</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${cu.login_id ? `<span class="badge bg-light text-dark border"><i class="bi bi-person-fill me-1"></i>Login: ${cu.login_id}</span>` : ''}
+            ${cu.sis_user_id ? `<span class="badge bg-light text-dark border"><i class="bi bi-fingerprint me-1"></i>CI: ${cu.sis_user_id}</span>` : ''}
+            ${cu.id ? `<span class="badge bg-light text-dark border">ID: ${cu.id}</span>` : ''}
+          </div>
+        </div>
+        <div class="mb-3">
+          <strong class="small d-block mb-2">Inscripciones (${canvasCount})</strong>
+          <div style="max-height:300px;overflow-y:auto;border:1px solid var(--card-border);border-radius:6px">
+            <table class="table table-sm table-hover mb-0">
+              <thead style="background:var(--card-border)">
+                <tr><th style="font-size:0.75rem">Código</th><th style="font-size:0.75rem">Nombre del curso</th><th style="font-size:0.75rem">Programa</th><th style="font-size:0.75rem">Año</th><th style="font-size:0.75rem">Rol</th><th style="font-size:0.75rem">Estado</th></tr>
+              </thead>
+              <tbody>${enrollRows}</tbody>
+            </table>
+          </div>
+        </div>
+        ${groupCount > 0 ? `
+        <div>
+          <strong class="small d-block mb-2">Grupos Canvas (${groupCount})</strong>
+          <div>${groupHtml}</div>
+        </div>` : ''}
+      </div>
+
+      <!-- Teams tab -->
+      <div id="t-tab" style="display:none">
+        ${tu.userPrincipalName ? `
+          <div class="mb-3">
+            <strong class="small d-block mb-2">Información Teams / Azure AD</strong>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="badge bg-light text-dark border"><i class="bi bi-envelope me-1"></i>${tu.userPrincipalName}</span>
+              <span class="badge ${tu.accountEnabled ? 'bg-success' : 'bg-danger'}">${tu.accountEnabled ? 'Activo' : 'Inactivo'}</span>
+              ${tu.department ? `<span class="badge bg-light text-dark border">${tu.department}</span>` : ''}
+              ${tu.jobTitle   ? `<span class="badge bg-light text-dark border">${tu.jobTitle}</span>`   : ''}
+              ${tu.officeLocation ? `<span class="badge bg-light text-dark border"><i class="bi bi-geo-alt me-1"></i>${tu.officeLocation}</span>` : ''}
+              ${tu.mobilePhone || tu.phone ? `<span class="badge bg-light text-dark border"><i class="bi bi-telephone me-1"></i>${tu.mobilePhone || tu.phone}</span>` : ''}
+            </div>
+          </div>` : '<p class="text-muted small">Usuario no encontrado en Azure AD</p>'}
+        <div>
+          <strong class="small d-block mb-2">Equipos (${teamsCount})</strong>
+          <div style="max-height:350px;overflow-y:auto">${teamsHtml}</div>
+        </div>
+      </div>`;
+
+    document.querySelectorAll('#profileTabs .nav-link').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#profileTabs .nav-link').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('c-tab').style.display = btn.dataset.tab === 'c-tab' ? '' : 'none';
+        document.getElementById('t-tab').style.display = btn.dataset.tab === 't-tab' ? '' : 'none';
+      });
+    });
+
+    // Update modal title with proper styling
+    document.getElementById('globalModalTitle').innerHTML = `<i class="bi bi-person-circle me-2"></i>${name}`;
+  } catch(e) {
+    document.getElementById('globalModalBody').innerHTML =
+      `<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Error cargando perfil: ${e.message}</div>`;
+  }
+}
+
+function openCreateUser() {
+  showModal('Crear Usuario Canvas', `
+    <form id="userForm">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nombre completo *</label><input class="form-control" name="name" required></div>
+        <div class="col-md-6"><label class="form-label">Email *</label><input type="email" class="form-control" name="email" required></div>
+        <div class="col-md-6"><label class="form-label">Login (usuario) *</label><input class="form-control" name="login_id" required></div>
+        <div class="col-md-6"><label class="form-label">Contraseña</label><input type="password" class="form-control" name="password"></div>
+        <div class="col-md-6"><label class="form-label">SIS User ID</label><input class="form-control" name="sis_user_id"></div>
+        <div class="col-md-6 d-flex align-items-end">
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="send_confirmation" id="sc"><label class="form-check-label" for="sc">Enviar email de confirmación</label></div>
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" id="saveBtn" onclick="saveUser()"><i class="bi bi-check-lg me-1"></i>Guardar</button>`);
+}
+
+async function saveUser() {
+  const btn = document.getElementById('saveBtn');
+  const form = document.getElementById('userForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const fd = new FormData(form);
+  const data = { name: fd.get('name'), email: fd.get('email'), login_id: fd.get('login_id'),
+                 password: fd.get('password') || null, sis_user_id: fd.get('sis_user_id') || null,
+                 send_confirmation: fd.get('send_confirmation') === 'on' };
+  setLoading(btn, true);
+  try {
+    await api.post('/canvas/users', data);
+    toast('Usuario creado correctamente', 'success');
+    closeModal(); loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function openEditUser(u) {
+  showModal('Editar Usuario: ' + u.name, `
+    <form id="editForm">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nombre</label><input class="form-control" name="name" value="${u.name||''}"></div>
+        <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control" name="email" value="${u.email||''}"></div>
+      </div>
+    </form>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-primary" id="editBtn" onclick="updateUser('${u.id}')"><i class="bi bi-check-lg me-1"></i>Actualizar</button>`);
+}
+
+async function updateUser(id) {
+  const btn = document.getElementById('editBtn');
+  const fd = new FormData(document.getElementById('editForm'));
+  const data = {};
+  if (fd.get('name'))  data.name  = fd.get('name');
+  if (fd.get('email')) data.email = fd.get('email');
+  setLoading(btn, true);
+  try {
+    await api.put('/canvas/users/' + id, data);
+    toast('Usuario actualizado', 'success'); closeModal(); loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+function deleteUser(id, name) {
+  confirmAction(`¿Eliminar el usuario <strong>${name}</strong>? Esta acción no se puede deshacer.`, async () => {
+    try { await api.del('/canvas/users/' + id); toast('Usuario eliminado', 'success'); loadUsers(); }
+    catch(e) { toast('Error: ' + e.message, 'danger'); }
+  });
+}
+
+function openExcelUsers() {
+  showModal('Importar usuarios desde Excel', `
+    <p class="text-muted small">Columnas requeridas: <code>name, email, login_id</code> — Opcionales: <code>password, sis_user_id</code></p>
+    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
+    <div id="previewArea" class="mt-3"></div>
+    <div id="resultArea" class="mt-3"></div>`,
+    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadUsers()"><i class="bi bi-upload me-1"></i>Importar</button>`);
+  initDropZone('dz', 'excelFile', file => {
+    readExcel(file, rows => {
+      document.getElementById('previewArea').innerHTML =
+        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
+    });
+  });
+}
+
+async function doUploadUsers() {
+  const btn = document.getElementById('uploadBtn');
+  setLoading(btn, true);
+  try {
+    const res = await uploadExcel('/excel/canvas/users', 'excelFile');
+    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
+    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
+    loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+  finally { setLoading(btn, false); }
+}
+
+loadUsers();
+</script>
+{% endblock %}

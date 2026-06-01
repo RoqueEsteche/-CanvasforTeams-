@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Mi Perfil – USIL Gestión TI{% endblock %}
+{% block breadcrumb %}Mi perfil{% endblock %}
+{% block nav_pf %}active{% endblock %}
+{% block content %}
+
+<!-- Header skeleton -->
+<div id="profileHeader" class="table-card p-4 mb-4">
+  <div class="d-flex align-items-center gap-4 flex-wrap">
+    <div id="avatarBox" class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white fs-2 flex-shrink-0"
+         style="width:72px;height:72px;background:var(--sidebar-accent)">?</div>
+    <div class="flex-grow-1">
+      <h4 class="mb-0" id="pName"><span class="placeholder col-4"></span></h4>
+      <div class="text-muted small" id="pEmail"></div>
+      <div class="mt-1 d-flex gap-2 flex-wrap" id="pBadges"></div>
+    </div>
+    <a href="/auth/logout" class="btn btn-outline-danger btn-sm ms-auto">
+      <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
+    </a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4" id="statsRow">
+  <div class="col-6 col-md-3">
+    <div class="table-card p-3 text-center">
+      <div class="fs-3 fw-bold text-primary" id="statCursos">—</div>
+      <div class="small text-muted">Cursos Canvas</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="table-card p-3 text-center">
+      <div class="fs-3 fw-bold text-success" id="statGrupos">—</div>
+      <div class="small text-muted">Grupos Canvas</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="table-card p-3 text-center">
+      <div class="fs-3 fw-bold" style="color:#6264a7" id="statTeams">—</div>
+      <div class="small text-muted">Teams</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="table-card p-3 text-center">
+      <div class="fs-3 fw-bold text-warning" id="statDoc">—</div>
+      <div class="small text-muted">Como docente</div>
+    </div>
+  </div>
+</div>
+
+<!-- Canvas section -->
+<div class="table-card mb-4">
+  <div class="card-header">
+    <i class="bi bi-mortarboard-fill text-warning me-2"></i><strong>Canvas LMS</strong>
+    <span class="badge bg-secondary ms-2" id="canvasBadge">cargando…</span>
+  </div>
+  <div class="p-3">
+    <!-- Filters -->
+    <div class="row g-2 mb-3">
+      <div class="col"><input id="fPrograma" class="form-control form-control-sm" placeholder="Filtrar por programa…" oninput="applyFilters()"></div>
+      <div class="col-auto"><input id="fAnio" class="form-control form-control-sm" placeholder="Año" style="width:90px" oninput="applyFilters()"></div>
+      <div class="col-auto">
+        <select id="fRol" class="form-select form-select-sm" onchange="applyFilters()">
+          <option value="">Todos los roles</option>
+          <option value="TeacherEnrollment">Docente</option>
+          <option value="StudentEnrollment">Alumno</option>
+          <option value="TaEnrollment">Asistente TA</option>
+          <option value="ObserverEnrollment">Observador</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <select id="fEstado" class="form-select form-select-sm" onchange="applyFilters()">
+          <option value="">Todos los estados</option>
+          <option value="active">Activo</option>
+          <option value="invited">Invitado</option>
+          <option value="completed">Completado</option>
+          <option value="inactive">Inactivo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-responsive mb-3" style="max-height:340px;overflow-y:auto">
+      <table class="table table-sm table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Código</th><th>Nombre del curso</th><th>Programa</th>
+            <th>Año</th><th>Rol</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="enrollBody">
+          <tr><td colspan="6" class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="groupsSection" style="display:none">
+      <strong class="small">Grupos Canvas</strong>
+      <div class="d-flex flex-wrap gap-2 mt-2" id="groupsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Teams section -->
+<div class="table-card mb-4">
+  <div class="card-header">
+    <i class="bi bi-microsoft-teams me-2" style="color:#6264a7"></i><strong>Microsoft Teams / Azure AD</strong>
+    <span class="badge bg-secondary ms-2" id="teamsBadge">cargando…</span>
+  </div>
+  <div class="p-3">
+    <div id="teamsUserInfo" class="mb-4"></div>
+    <div id="teamsGrid"></div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let _enrollments = [];
+
+const ROLE_MAP = {
+  TeacherEnrollment:  { label: 'Docente',       cls: 'bg-warning text-dark' },
+  StudentEnrollment:  { label: 'Alumno',         cls: 'bg-primary'          },
+  TaEnrollment:       { label: 'Asistente TA',   cls: 'bg-info text-dark'   },
+  ObserverEnrollment: { label: 'Observador',     cls: 'bg-secondary'        },
+};
+const STATE_MAP = {
+  active:    { label: 'Activo',     cls: 'bg-success' },
+  invited:   { label: 'Invitado',   cls: 'bg-warning text-dark' },
+  completed: { label: 'Completado', cls: 'bg-secondary' },
+  inactive:  { label: 'Inactivo',   cls: 'bg-danger'  },
+};
+
+function roleBadge(role) {
+  const r = ROLE_MAP[role] || { label: role || '—', cls: 'bg-secondary' };
+  return `<span class="badge ${r.cls}">${r.label}</span>`;
+}
+function stateBadge(state) {
+  const s = STATE_MAP[state] || { label: state || '—', cls: 'bg-secondary' };
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+
+function applyFilters() {
+  const prog  = document.getElementById('fPrograma').value.toLowerCase();
+  const anio  = document.getElementById('fAnio').value.trim();
+  const rol   = document.getElementById('fRol').value;
+  const est   = document.getElementById('fEstado').value;
+
+  const filtered = _enrollments.filter(e =>
+    (!prog || (e.program || '').toLowerCase().includes(prog)) &&
+    (!anio || e.year === anio) &&
+    (!rol  || e.role === rol) &&
+    (!est  || e.enrollment_state === est)
+  );
+
+  document.getElementById('enrollBody').innerHTML = filtered.length
+    ? filtered.map(e => `
+        <tr>
+          <td class="small text-muted">${e.course_code || '—'}</td>
+          <td class="small fw-semibold">${e.course_name}</td>
+          <td class="small">${e.program || '—'}</td>
+          <td class="small">${e.year || '—'}</td>
+          <td>${roleBadge(e.role)}</td>
+          <td>${stateBadge(e.enrollment_state)}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="6" class="text-center text-muted py-3">Sin resultados para los filtros seleccionados</td></tr>';
+}
+
+function renderTeamsSection(teamsData) {
+  if (!teamsData) {
+    document.getElementById('teamsUserInfo').innerHTML = '<p class="text-muted small">Usuario no encontrado en Azure AD.</p>';
+    document.getElementById('teamsBadge').textContent = 'no encontrado';
+    return;
+  }
+  const u = teamsData.teams_user || {};
+  const teams = teamsData.teams || [];
+
+  document.getElementById('teamsBadge').textContent = `${teams.length} equipos`;
+  document.getElementById('teamsBadge').className = 'badge bg-primary ms-2';
+
+  const phones = [u.phone, u.mobilePhone].filter(Boolean).join(' · ') || '—';
+  document.getElementById('teamsUserInfo').innerHTML = `
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="small text-muted mb-1">UPN (usuario de inicio de sesión)</div>
+        <div class="fw-semibold">${u.userPrincipalName || '—'}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="small text-muted mb-1">Departamento</div>
+        <div>${u.department || '—'}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="small text-muted mb-1">Cargo</div>
+        <div>${u.jobTitle || '—'}</div>
+      </div>
+      ${u.officeLocation ? `<div class="col-md-3"><div class="small text-muted mb-1">Oficina</div><div>${u.officeLocation}</div></div>` : ''}
+      ${phones !== '—' ? `<div class="col-md-3"><div class="small text-muted mb-1">Teléfono</div><div>${phones}</div></div>` : ''}
+      <div class="col-md-3">
+        <div class="small text-muted mb-1">Estado</div>
+        <span class="badge ${u.accountEnabled ? 'bg-success' : 'bg-danger'}">
+          ${u.accountEnabled ? 'Cuenta activa' : 'Cuenta deshabilitada'}
+        </span>
+      </div>
+    </div>`;
+
+  if (!teams.length) {
+    document.getElementById('teamsGrid').innerHTML = '<p class="text-muted small">Sin membresías en Teams.</p>';
+    return;
+  }
+
+  const VISIB = { Public: 'Público', Private: 'Privado', HiddenMembership: 'Organización' };
+  const VISIB_CLS = { Public: 'bg-success', Private: 'bg-warning text-dark', HiddenMembership: 'bg-info text-dark' };
+
+  document.getElementById('teamsGrid').innerHTML = `
+    <strong class="small d-block mb-3">Equipos (${teams.length})</strong>
+    <div class="row g-3">
+      ${teams.map(t => {
+        const vis = VISIB[t.visibility] || t.visibility || '—';
+        const visCls = VISIB_CLS[t.visibility] || 'bg-secondary';
+        const chCount = (t.channels || []).length;
+        const chHtml = (t.channels || []).slice(0, 8).map(ch =>
+          `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size:.7rem">${ch.displayName}</span>`
+        ).join('') + (chCount > 8 ? `<span class="text-muted small">+${chCount - 8} más</span>` : '');
+        return `
+          <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="fw-semibold small">${t.displayName}</div>
+                <span class="badge ${visCls} flex-shrink-0 ms-1">${vis}</span>
+              </div>
+              ${t.description ? `<div class="text-muted" style="font-size:.72rem;margin-bottom:.5rem">${t.description.slice(0,80)}${t.description.length>80?'…':''}</div>` : ''}
+              ${chCount ? `<div class="mt-1">${chHtml}</div>` : '<div class="text-muted" style="font-size:.72rem">Sin canales visibles</div>'}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function renderProfile() {
+  try {
+    const me = await api.get('/profile/me');
+    const initials = (me.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    document.getElementById('avatarBox').textContent = initials;
+    document.getElementById('pName').textContent = me.name || me.email;
+    document.getElementById('pEmail').textContent = me.email;
+
+    // Load Canvas and Teams in parallel
+    const [canvasData, teamsData] = await Promise.allSettled([
+      api.get('/profile/canvas'),
+      api.get('/profile/teams'),
+    ]);
+
+    // ── Canvas ─────────────────────────────────────────────────
+    if (canvasData.status === 'fulfilled') {
+      const c = canvasData.value;
+      _enrollments = c.enrollments || [];
+      const groups = c.groups || [];
+      const docCount = _enrollments.filter(e => e.role === 'TeacherEnrollment').length;
+
+      document.getElementById('statCursos').textContent = _enrollments.length;
+      document.getElementById('statGrupos').textContent = groups.length;
+      document.getElementById('statDoc').textContent = docCount;
+      document.getElementById('canvasBadge').textContent = `${_enrollments.length} cursos`;
+      document.getElementById('canvasBadge').className = 'badge bg-warning text-dark ms-2';
+
+      // Augment badges with Canvas user info
+      document.getElementById('pBadges').insertAdjacentHTML('beforeend',
+        `<span class="badge bg-light text-dark border"><i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas ID ${c.canvas_user?.id || '—'}</span>`
+      );
+
+      applyFilters();
+
+      if (groups.length) {
+        document.getElementById('groupsSection').style.display = '';
+        document.getElementById('groupsList').innerHTML = groups.map(g =>
+          `<span class="badge bg-light text-dark border"><i class="bi bi-people-fill me-1 text-primary"></i>${g.name || 'Sin nombre'}</span>`
+        ).join('');
+      }
+    } else {
+      document.getElementById('canvasBadge').textContent = 'no encontrado';
+      document.getElementById('enrollBody').innerHTML =
+        `<tr><td colspan="6" class="text-center text-muted py-3">No se encontró el usuario en Canvas</td></tr>`;
+    }
+
+    // ── Teams ──────────────────────────────────────────────────
+    if (teamsData.status === 'fulfilled') {
+      const t = teamsData.value;
+      const u = t.teams_user || {};
+      const teams = t.teams || [];
+
+      document.getElementById('statTeams').textContent = teams.length;
+
+      // Add badge and info in header
+      document.getElementById('pBadges').insertAdjacentHTML('beforeend',
+        `<span class="badge bg-light text-dark border"><i class="bi bi-person-badge-fill me-1" style="color:#6264a7"></i>${u.department || u.jobTitle || 'Azure AD'}</span>`
+      );
+      if (u.accountEnabled === false) {
+        document.getElementById('pBadges').insertAdjacentHTML('beforeend',
+          `<span class="badge bg-danger">Cuenta deshabilitada</span>`
+        );
+      }
+
+      renderTeamsSection(t);
+    } else {
+      document.getElementById('statTeams').textContent = '—';
+      renderTeamsSection(null);
+    }
+
+  } catch (err) {
+    if (err.message.includes('401') || err.message.includes('autenticad')) {
+      window.location.href = '/ui/login';
+      return;
+    }
+    toast('Error cargando perfil: ' + err.message, 'danger');
+  }
+}
+
+renderProfile();
+</script>
+{% endblock %}

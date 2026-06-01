@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Matrículas</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { padding: 20px; font-family: sans-serif; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; max-height: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Test de Matrículas Canvas</h1>
+
+    <div class="test-section">
+        <h2>API Test</h2>
+        <div id="apiTest"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Frontend Test</h2>
+        <input type="text" id="courseSearch" placeholder="Escribe para buscar..." style="width:100%;padding:8px;margin-bottom:10px;">
+        <div id="courseResults" style="border:1px solid #ccc;max-height:200px;overflow:auto;margin-bottom:10px;"></div>
+        <div id="frontendTest"></div>
+    </div>
+
+    <script>
+    // Include the API helper from main.js
+    async function apiCall(method, url, data = null) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (data) opts.body = JSON.stringify(data);
+      let r = await fetch(url, opts);
+      if (!r.ok) throw new Error(`${r.status}: ${r.statusText}`);
+      return r.status === 204 ? {} : r.json();
+    }
+    const api = {
+      get:      (u)    => apiCall('GET',    u),
+      post:     (u, d) => apiCall('POST',   u, d),
+    };
+
+    let _allCourses = [];
+
+    async function loadCourses() {
+      const result = document.getElementById('apiTest');
+      result.innerHTML = '<p>Cargando...</p>';
+      try {
+        _allCourses = await api.get('/canvas/courses?per_page=10');
+        result.innerHTML = `<p class="success">✓ ${_allCourses.length} cursos cargados</p>`;
+        document.getElementById('courseSearch').disabled = false;
+      } catch(e) {
+        result.innerHTML = `<p class="error">✗ Error: ${e.message}</p>`;
+      }
+    }
+
+    function filterCourses(query) {
+      const results = document.getElementById('courseResults');
+      if (!query || query.length < 2) {
+        results.style.display = 'none';
+        return;
+      }
+      const q = query.toLowerCase();
+      const filtered = _allCourses.filter(c =>
+        String(c.id).includes(q) || (c.name && c.name.toLowerCase().includes(q))
+      );
+
+      if (filtered.length === 0) {
+        results.innerHTML = '<div style="padding:10px">Sin resultados</div>';
+        results.style.display = 'block';
+        return;
+      }
+
+      results.innerHTML = filtered.map(c => `
+        <div style="padding:10px;border-bottom:1px solid #eee;cursor:pointer" onclick="selectCourse(${c.id}, '${c.name}')">
+          <strong>[${c.id}]</strong> ${c.name}
+        </div>
+      `).join('');
+      results.style.display = 'block';
+    }
+
+    async function selectCourse(courseId, name) {
+      const result = document.getElementById('frontendTest');
+      result.innerHTML = `<p>Cargando matrículas para: ${name}...</p>`;
+      document.getElementById('courseSearch').value = `[${courseId}] ${name}`;
+      document.getElementById('courseResults').style.display = 'none';
+
+      try {
+        const enrollments = await api.get(`/canvas/courses/${courseId}/enrollments?per_page=10`);
+        result.innerHTML = `<p class="success">✓ ${enrollments.length} matrículas cargadas</p>
+          <pre>${JSON.stringify(enrollments.slice(0,2), null, 2)}</pre>`;
+      } catch(e) {
+        result.innerHTML = `<p class="error">✗ Error: ${e.message}</p>`;
+      }
+    }
+
+    document.getElementById('courseSearch').addEventListener('input', (e) => filterCourses(e.target.value));
+
+    // Load courses on page load
+    loadCourses();
+    </script>
+</body>
+</html>

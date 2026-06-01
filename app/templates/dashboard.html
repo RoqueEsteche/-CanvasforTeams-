@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – USIL Gestión TI{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div>
+    <div class="page-title">Panel de control</div>
+    <div class="page-subtitle">USIL — Sistema de Gestión TI · Canvas LMS & Microsoft Teams</div>
+  </div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <span id="sync-badge" class="badge bg-light text-muted border"></span>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshAll()" title="Recargar datos">
+      <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+    </button>
+  </div>
+</div>
+
+<!-- Stats (instant from DB) -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
+        <div>
+          <div class="fw-bold fs-4" id="cnt-cu"><span class="skeleton" style="width:50px">&nbsp;</span></div>
+          <div class="text-muted small">Usuarios Canvas</div>
+          <a href="/ui/canvas/users" class="small text-primary text-decoration-none">Ver todos →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="icon-box bg-success bg-opacity-10 text-success"><i class="bi bi-book-fill"></i></div>
+        <div>
+          <div class="fw-bold fs-4" id="cnt-cc"><span class="skeleton" style="width:50px">&nbsp;</span></div>
+          <div class="text-muted small">Cursos Canvas</div>
+          <a href="/ui/canvas/courses" class="small text-success text-decoration-none">Ver todos →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="icon-box bg-info bg-opacity-10 text-info"><i class="bi bi-person-badge-fill"></i></div>
+        <div>
+          <div class="fw-bold fs-4" id="cnt-tu"><span class="skeleton" style="width:50px">&nbsp;</span></div>
+          <div class="text-muted small">Usuarios Azure AD</div>
+          <a href="/ui/teams/users" class="small text-info text-decoration-none">Ver todos →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="icon-box" style="width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:rgba(98,100,167,.1);color:#6264a7">
+          <i class="bi bi-microsoft-teams"></i>
+        </div>
+        <div>
+          <div class="fw-bold fs-4" id="cnt-tt"><span class="skeleton" style="width:50px">&nbsp;</span></div>
+          <div class="text-muted small">Teams</div>
+          <a href="/ui/teams/teams" class="small text-decoration-none" style="color:#6264a7">Ver todos →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Acciones rápidas -->
+<div class="table-card mb-4">
+  <div class="card-header">
+    <i class="bi bi-lightning-fill text-warning me-2"></i><strong>Acciones rápidas</strong>
+    <span class="text-muted small ms-2">Tareas frecuentes de un clic</span>
+  </div>
+  <div class="p-3">
+    <div class="row g-2">
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/ingreso" class="quick-action text-decoration-none">
+          <i class="bi bi-person-fill-add text-success"></i>
+          <span>Nuevo Ingreso</span>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/canvas/enrollments" class="quick-action text-decoration-none">
+          <i class="bi bi-pencil-square text-primary"></i>
+          <span>Gestionar Matrículas</span>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/canvas/users" class="quick-action text-decoration-none">
+          <i class="bi bi-people-fill text-warning"></i>
+          <span>Usuarios Canvas</span>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/teams/users" class="quick-action text-decoration-none">
+          <i class="bi bi-person-badge-fill" style="color:#6264a7"></i>
+          <span>Usuarios Azure AD</span>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/canvas/courses" class="quick-action text-decoration-none">
+          <i class="bi bi-book-fill text-info"></i>
+          <span>Gestionar Cursos</span>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="/ui/sync" class="quick-action text-decoration-none">
+          <i class="bi bi-arrow-left-right text-danger"></i>
+          <span>Sincronización</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main content row -->
+<div class="row g-3 mb-3">
+  <!-- Últimos cursos -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="card-header">
+        <i class="bi bi-book-fill text-success me-2"></i><strong>Cursos recientes</strong>
+        <a href="/ui/canvas/courses" class="btn btn-sm btn-outline-secondary ms-auto">Ver todos</a>
+      </div>
+      <div id="last-courses" style="max-height:280px;overflow-y:auto">
+        <div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teams recientes -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="card-header">
+        <i class="bi bi-microsoft-teams me-2" style="color:#6264a7"></i><strong>Teams recientes</strong>
+        <a href="/ui/teams/teams" class="btn btn-sm btn-outline-secondary ms-auto">Ver todos</a>
+      </div>
+      <div id="last-teams" style="max-height:280px;overflow-y:auto">
+        <div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actividad reciente -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="card-header">
+        <i class="bi bi-clock-history text-primary me-2"></i><strong>Actividad reciente</strong>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="loadAudit()" aria-label="Recargar">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div id="audit-log" class="audit-log-scroll" style="max-height:280px;overflow-y:auto">
+        <div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Estado del sistema -->
+<div class="table-card p-3">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span class="fw-semibold small text-muted"><i class="bi bi-activity me-1"></i>Estado del sistema</span>
+    <span id="health-canvas" class="badge bg-secondary">
+      Canvas <span class="spinner-border spinner-border-sm ms-1" style="width:.7em;height:.7em"></span>
+    </span>
+    <span id="health-azure" class="badge bg-secondary">
+      Azure AD <span class="spinner-border spinner-border-sm ms-1" style="width:.7em;height:.7em"></span>
+    </span>
+    <span id="cache-stats" class="text-muted small"></span>
+    <div class="ms-auto d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearCache()">
+        <i class="bi bi-trash2 me-1"></i>Limpiar caché
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const ACTION_ICONS = {
+  create:       'bi-plus-circle-fill text-success',
+  delete:       'bi-trash-fill text-danger',
+  update:       'bi-pencil-fill text-primary',
+  import:       'bi-file-earmark-arrow-up-fill text-info',
+  import_bulk:  'bi-file-earmark-arrow-up-fill text-info',
+  cache_clear:  'bi-trash2-fill text-warning',
+  login:        'bi-box-arrow-in-right text-success',
+  delete_bulk:  'bi-trash-fill text-danger',
+};
+const ACTION_LABEL = {
+  create: 'Crear', delete: 'Eliminar', update: 'Actualizar',
+  import: 'Importar', import_bulk: 'Importar masivo', cache_clear: 'Caché',
+  login: 'Ingreso', delete_bulk: 'Eliminar masivo',
+};
+
+function timeAgo(ts) {
+  const diff = Math.floor(Date.now() / 1000) - ts;
+  if (diff < 60)   return `hace ${diff}s`;
+  if (diff < 3600) return `hace ${Math.floor(diff/60)}m`;
+  if (diff < 86400) return `hace ${Math.floor(diff/3600)}h`;
+  return `hace ${Math.floor(diff/86400)}d`;
+}
+
+async function loadStats() {
+  try {
+    // Stats from DB — instant (no external API calls)
+    const s = await api.get('/stats');
+    document.getElementById('cnt-cu').textContent = s.canvas_users  || '0';
+    document.getElementById('cnt-cc').textContent = s.canvas_courses || '0';
+    document.getElementById('cnt-tu').textContent = s.azure_users   || '0';
+
+    if (s.last_sync) {
+      const mins = Math.round((Date.now()/1000 - s.last_sync) / 60);
+      document.getElementById('sync-badge').textContent =
+        `Última sincronización: ${mins < 60 ? mins + ' min' : Math.floor(mins/60) + 'h'} atrás`;
+    }
+
+    // Teams count still needs API (not in local DB)
+    api.get('/teams/teams?top=50').then(teams => {
+      document.getElementById('cnt-tt').textContent = teams.length >= 50 ? '50+' : teams.length;
+      const rows = teams.slice(0, 8).map(t => `
+        <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+          <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+               style="width:30px;height:30px;font-size:.7rem;background:#6264a7">
+            ${(t.displayName||'?')[0].toUpperCase()}
+          </div>
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="small fw-semibold text-truncate">${t.displayName || '—'}</div>
+          </div>
+          <span class="badge ${t.visibility==='Public'?'bg-success':t.visibility==='Private'?'bg-warning text-dark':'bg-secondary'}"
+                style="font-size:.65rem">${t.visibility||'—'}</span>
+        </div>`).join('');
+      document.getElementById('last-teams').innerHTML =
+        rows || '<div class="empty-state"><i class="bi bi-microsoft-teams"></i><p>Sin Teams</p></div>';
+    }).catch(() => {
+      document.getElementById('cnt-tt').textContent = '—';
+      document.getElementById('last-teams').innerHTML =
+        '<div class="text-danger small p-3">Error cargando Teams</div>';
+    });
+
+    // Load recent courses from DB (instant)
+    api.get('/canvas/courses?per_page=8').then(courses => {
+      const rows = courses.slice(0, 8).map(c => `
+        <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="small fw-semibold text-truncate">${c.name || '—'}</div>
+            <div class="text-muted" style="font-size:.72rem">${c.course_code || ''}</div>
+          </div>
+          <span class="badge ${c.workflow_state==='available'?'bg-success':c.workflow_state==='completed'?'bg-secondary':'bg-warning text-dark'}"
+                style="font-size:.65rem">${c.workflow_state||'—'}</span>
+        </div>`).join('');
+      document.getElementById('last-courses').innerHTML =
+        rows || '<div class="empty-state"><i class="bi bi-book"></i><p>Sin cursos</p></div>';
+    }).catch(() => {
+      document.getElementById('last-courses').innerHTML =
+        '<div class="text-danger small p-3">Error cargando cursos</div>';
+    });
+
+  } catch(e) {
+    ['cnt-cu','cnt-cc','cnt-tu','cnt-tt'].forEach(id =>
+      document.getElementById(id).textContent = '—');
+  }
+}
+
+async function loadAudit() {
+  try {
+    const data = await api.get('/audit/recent?limit=30');
+    const entries = data.entries || [];
+    if (!entries.length) {
+      document.getElementById('audit-log').innerHTML =
+        '<div class="empty-state"><i class="bi bi-clock-history"></i><p>Sin actividad registrada aún.</p></div>';
+      return;
+    }
+    document.getElementById('audit-log').innerHTML = entries.map(e => {
+      const icon = ACTION_ICONS[e.action] || 'bi-info-circle text-secondary';
+      const label = ACTION_LABEL[e.action] || e.action;
+      const ok = e.status === 'ok';
+      return `<div class="d-flex gap-2 align-items-start px-3 py-2 border-bottom">
+        <i class="bi ${icon} mt-1 flex-shrink-0" style="font-size:.85rem"></i>
+        <div class="flex-grow-1 overflow-hidden">
+          <div class="small">
+            <span class="fw-semibold">${label}</span>
+            <span class="text-muted"> ${e.resource}</span>
+            ${!ok ? '<span class="badge bg-danger ms-1" style="font-size:.6rem">error</span>' : ''}
+          </div>
+          ${e.detail ? `<div class="text-muted text-truncate" style="font-size:.75rem">${e.detail}</div>` : ''}
+          <div class="text-muted" style="font-size:.72rem">${e.user} · ${timeAgo(e.ts)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('audit-log').innerHTML = e.message.includes('401')
+      ? '<div class="empty-state"><i class="bi bi-lock"></i><p>Iniciá sesión para ver la actividad.</p></div>'
+      : `<div class="text-danger small p-3">${e.message}</div>`;
+  }
+}
+
+async function loadHealth() {
+  try {
+    const h = await api.get('/health');
+    const c = h.cache || {};
+    document.getElementById('cache-stats').textContent =
+      `Caché: ${c.valid || 0} válidas · ${c.total || 0} total`;
+  } catch(_) {}
+
+  try {
+    const d = await api.get('/diagnostics');
+    const cv = d.canvas?.status === 'ok';
+    const az = d.azure?.status  === 'ok';
+    const cvEl = document.getElementById('health-canvas');
+    const azEl = document.getElementById('health-azure');
+    cvEl.className = `badge bg-${cv ? 'success' : 'danger'}`;
+    cvEl.innerHTML = `<i class="bi bi-${cv?'check':'x'}-circle me-1"></i>Canvas`;
+    azEl.className = `badge bg-${az ? 'success' : 'danger'}`;
+    azEl.innerHTML = `<i class="bi bi-${az?'check':'x'}-circle me-1"></i>Azure AD`;
+  } catch(_) {
+    ['health-canvas','health-azure'].forEach(id => {
+      document.getElementById(id).className = 'badge bg-secondary';
+    });
+    document.getElementById('health-canvas').textContent = 'Canvas —';
+    document.getElementById('health-azure').textContent  = 'Azure AD —';
+  }
+}
+
+async function clearCache() {
+  try {
+    await api.post('/cache/clear', {});
+    toast('Caché limpiada', 'success');
+    refreshAll();
+  } catch(e) { toast('Error: ' + e.message, 'danger'); }
+}
+
+function refreshAll() {
+  ['cnt-cu','cnt-cc','cnt-tu','cnt-tt'].forEach(id =>
+    document.getElementById(id).innerHTML = '<span class="spinner-border spinner-border-sm"></span>');
+  ['last-courses','last-teams','audit-log'].forEach(id =>
+    document.getElementById(id).innerHTML =
+      '<div class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></div>');
+  Promise.all([loadStats(), loadAudit(), loadHealth()]);
+}
+
+Promise.all([loadStats(), loadAudit(), loadHealth()]);
+</script>
+{% endblock %}
