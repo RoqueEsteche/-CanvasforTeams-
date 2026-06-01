@@ -67,11 +67,15 @@ async def init_db(database_url: str) -> None:
     """Initialize PostgreSQL database with tables."""
     global _engine, _async_session
 
+    # Convert postgresql:// to postgresql+asyncpg:// for async support
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
     _engine = create_async_engine(
         database_url,
         echo=False,
         poolclass=NullPool,
-        connect_args={"timeout": 30}
+        connect_args={"timeout": 30, "ssl": "prefer"}
     )
     _async_session = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
