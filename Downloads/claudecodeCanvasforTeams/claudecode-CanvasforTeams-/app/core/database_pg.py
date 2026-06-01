@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, create_engine, select
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool

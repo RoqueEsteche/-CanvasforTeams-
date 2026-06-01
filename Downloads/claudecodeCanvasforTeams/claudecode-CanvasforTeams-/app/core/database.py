@@ -23,13 +23,22 @@ DB_PATH = _DB_DIR / "app.db"
 # Seconds before a table is considered stale (10 minutes)
 STALE_THRESHOLD = 600
 
-# Import the appropriate implementation
+# Lazy-loaded PostgreSQL implementation
+_db_impl = None
+
+def _get_pg_impl():
+    """Lazy load PostgreSQL implementation on first use."""
+    global _db_impl
+    if _db_impl is None and _USE_POSTGRES:
+        from . import database_pg
+        _db_impl = database_pg
+        logger.info("Using PostgreSQL backend via DATABASE_URL")
+    return _db_impl
+
 if _USE_POSTGRES:
-    from . import database_pg as _db_impl
-    logger.info("Using PostgreSQL backend via DATABASE_URL")
+    logger.info("PostgreSQL mode enabled (DATABASE_URL set)")
 else:
-    _db_impl = None
-    logger.info("Using SQLite backend (no DATABASE_URL set)")
+    logger.info("SQLite mode enabled (no DATABASE_URL set)")
 
 
 # ── SQLite internal helpers ───────────────────────────────────────────────────
@@ -134,7 +143,9 @@ async def init_db() -> None:
     """Initialize database (SQLite or PostgreSQL based on environment)."""
     if _USE_POSTGRES:
         database_url = os.getenv("DATABASE_URL")
-        await _db_impl.init_db(database_url)
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            await pg_impl.init_db(database_url)
     else:
         await _run(_init_sqlite_sync)
         logger.info("SQLite initialized: %s", DB_PATH)
@@ -161,15 +172,20 @@ def _mark_synced_sqlite(table: str) -> None:
 
 async def get_last_sync(table: str) -> float:
     if _USE_POSTGRES:
-        last_sync = await _db_impl.get_last_sync(table)
-        return last_sync.timestamp() if last_sync else 0.0
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            last_sync = await pg_impl.get_last_sync(table)
+            return last_sync.timestamp() if last_sync else 0.0
+        return 0.0
     else:
         return await _run(_get_last_sync_sqlite, table)
 
 
 async def mark_synced(table: str) -> None:
     if _USE_POSTGRES:
-        await _db_impl.mark_synced(table)
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            await pg_impl.mark_synced(table)
     else:
         await _run(_mark_synced_sqlite, table)
 
@@ -312,7 +328,10 @@ async def get_courses(search_term: str | None = None) -> list[dict]:
 
 async def count_courses() -> int:
     if _USE_POSTGRES:
-        return await _db_impl.count_courses()
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            return await pg_impl.count_courses()
+        return 0
     else:
         return await _run(_count_courses_sqlite)
 
@@ -372,7 +391,9 @@ async def upsert_canvas_users(users: list[dict]) -> None:
     if not users:
         return
     if _USE_POSTGRES:
-        await _db_impl.upsert_canvas_users(users)
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            await pg_impl.upsert_canvas_users(users)
     else:
         await _run(_upsert_canvas_users_sqlite, users)
 
@@ -387,7 +408,10 @@ async def get_canvas_users(search_term: str | None = None) -> list[dict]:
 
 async def count_canvas_users() -> int:
     if _USE_POSTGRES:
-        return await _db_impl.count_canvas_users()
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            return await pg_impl.count_canvas_users()
+        return 0
     else:
         return await _run(_count_canvas_users_sqlite)
 
@@ -525,7 +549,10 @@ async def get_azure_users(search: str | None = None) -> list[dict]:
 
 async def count_azure_users() -> int:
     if _USE_POSTGRES:
-        return await _db_impl.count_azure_users()
+        pg_impl = _get_pg_impl()
+        if pg_impl:
+            return await pg_impl.count_azure_users()
+        return 0
     else:
         return await _run(_count_azure_users_sqlite)
 
