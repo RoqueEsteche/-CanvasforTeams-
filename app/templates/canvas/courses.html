@@ -63,8 +63,8 @@ function renderCoursesTable(courses) {
     return `<span class="badge bg-${map[state] || 'secondary'} small">${state === 'available' ? 'Publicado' : state === 'unpublished' ? 'No publicado' : state === 'completed' ? 'Completado' : 'Eliminado'}</span>`;
   };
 
-  const html = `<table class="table table-sm table-hover mb-0" style="cursor:pointer">
-    <thead style="background:var(--card-border);position:sticky;top:0;z-index:10">
+  const html = `<table class="table table-sm table-hover mb-0">
+    <thead>
       <tr>
         <th>ID</th>
         <th>Nombre</th>
@@ -73,23 +73,26 @@ function renderCoursesTable(courses) {
         <th>Inicio</th>
         <th>Fin</th>
         <th>Estado</th>
-        <th style="width:150px">Acciones</th>
+        <th style="width:130px">Acciones</th>
       </tr>
     </thead>
     <tbody>
       ${courses.map(row => `
-        <tr class="course-row" data-course='${JSON.stringify(row).replace(/'/g,"&#x27;")}'>
-          <td class="small text-muted"><strong>${row.id}</strong> <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-btn" style="color:var(--text-muted)" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Course ID"><i class="bi bi-files"></i></button></td>
-          <td class="fw-semibold small" style="color:var(--sidebar-accent)">${row.name}</td>
-          <td class="small text-muted">${row.course_code || '—'}</td>
-          <td class="small text-muted">${row.sis_course_id || '—'}</td>
-          <td class="small">${row.start_at ? new Date(row.start_at).toLocaleDateString('es-ES') : '—'}</td>
-          <td class="small">${row.end_at ? new Date(row.end_at).toLocaleDateString('es-ES') : '—'}</td>
+        <tr class="course-row" style="cursor:pointer" data-course='${JSON.stringify(row).replace(/'/g,"&#x27;")}'>
+          <td>
+            <span class="fw-semibold">${row.id}</span>
+            <button type="button" class="btn-copy-id copy-btn" title="Copiar ID" data-copy-id="${row.id}" data-copy-label="Course ID"><i class="bi bi-files"></i></button>
+          </td>
+          <td class="td-name fw-semibold">${row.name}</td>
+          <td>${row.course_code || '—'}</td>
+          <td class="text-muted small">${row.sis_course_id || '—'}</td>
+          <td>${row.start_at ? new Date(row.start_at).toLocaleDateString('es-ES') : '—'}</td>
+          <td>${row.end_at ? new Date(row.end_at).toLocaleDateString('es-ES') : '—'}</td>
           <td>${stateBadge(row.workflow_state)}</td>
           <td>
-            <button class="btn btn-sm btn-outline-info me-1 view-enrollments-btn" title="Matrículas" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-people"></i></button>
+            <button class="btn btn-sm btn-outline-info me-1 view-enrollments-btn" title="Ver matrículas" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-people"></i></button>
             <button class="btn btn-sm btn-outline-warning me-1 attendance-btn" title="Asistencias" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-calendar-check"></i></button>
-            <button class="btn btn-sm btn-outline-danger delete-course-btn" title="Eliminar" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-sm btn-outline-danger delete-course-btn" title="Concluir curso" data-course-id="${row.id}" data-course-name="${row.name}"><i class="bi bi-trash"></i></button>
           </td>
         </tr>
       `).join('')}

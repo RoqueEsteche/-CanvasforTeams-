@@ -30,15 +30,15 @@ html.dark-mode {
   --body-bg: #0d0f14;
   --card-bg: #1a1f2e;
   --card-border: #2a3141;
-  --text-primary: #e8eaed;
-  --text-muted: #a0a8b8;
-  --text-light: #555e70;
+  --text-primary: #f0f2f5;
+  --text-muted: #b8c0d0;
+  --text-light: #6b7585;
   --text-inverse: rgba(255,255,255,.95);
   --input-bg: #151b28;
   --input-border: #2a3141;
   --table-hover-bg: #252d3d;
   --header-bg: #151b28;
-  --accent-light: rgba(78,115,223,.12);
+  --accent-light: rgba(78,115,223,.15);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,15 +47,15 @@ html.dark-mode {
     --body-bg: #0d0f14;
     --card-bg: #1a1f2e;
     --card-border: #2a3141;
-    --text-primary: #e8eaed;
-    --text-muted: #a0a8b8;
-    --text-light: #555e70;
+    --text-primary: #f0f2f5;
+    --text-muted: #b8c0d0;
+    --text-light: #6b7585;
     --text-inverse: rgba(255,255,255,.95);
     --input-bg: #151b28;
     --input-border: #2a3141;
     --table-hover-bg: #252d3d;
     --header-bg: #151b28;
-    --accent-light: rgba(78,115,223,.12);
+    --accent-light: rgba(78,115,223,.15);
   }
 }
 
@@ -479,11 +479,30 @@ body {
 .small, .text-muted { color: var(--text-muted) !important; }
 .text-secondary { color: var(--text-muted) !important; }
 
-/* Force text colors in tables */
+/* Force text colors in tables — overrides Bootstrap */
 .table, .table tbody, .table thead,
 .table tbody tr, .table tbody tr td,
 .table thead tr th { color: var(--text-primary) !important; }
 .table tbody tr:hover { background-color: var(--table-hover-bg) !important; }
+
+/* text-muted inside tables must stay legible in dark mode */
+.table .text-muted,
+.table td.text-muted,
+.table td .text-muted,
+.table td small { color: var(--text-muted) !important; }
+
+/* Course name link color — ensure contrast in both themes */
+.table td.td-name,
+.table td .cell-name { color: var(--sidebar-accent); font-weight: 600; }
+html.dark-mode .table td.td-name,
+html.dark-mode .table td .cell-name { color: #7da4f5; }
+
+/* ID chip inside tables */
+.table td .td-id { color: var(--text-muted); font-size: .78rem; }
+
+/* Inline color overrides must adapt to dark mode */
+html.dark-mode [style*="color:var(--sidebar-accent)"],
+html.dark-mode [style*="color: var(--sidebar-accent)"] { color: #7da4f5 !important; }
 
 /* ── Copy ID button ── */
 .btn-copy-id {
