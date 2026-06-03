@@ -9,8 +9,7 @@
     <div class="page-subtitle">Genera credenciales institucionales para alumnos y docentes</div>
   </div>
   <div class="ms-auto d-flex gap-2 flex-wrap">
-    <button type="button" class="btn btn-primary" onclick="openExcelIngreso()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel masivo</button>
-    <a href="/excel/template/ingreso" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+    <button type="button" class="btn btn-primary" onclick="openExcelIngreso()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
   </div>
 </div>
 
@@ -317,33 +316,59 @@ function exportLog() {
 }
 
 function openExcelIngreso() {
-  showModal('Importar desde Excel', `
-    <p class="text-muted small">Columnas requeridas: <code>full_name, cedula, personal_email</code><br>
-    Opcionales: <code>role (student/teacher)</code>, <code>platform (canvas/teams/both)</code>, <code>send_email (true/false)</code></p>
-    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastrá tu Excel aquí o hacé clic para seleccionar</div>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
-    <div id="previewArea" class="mt-3"></div>
-    <div id="resultArea" class="mt-3"></div>`,
-    `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-     <button type="button" class="btn btn-primary" id="uploadBtn" onclick="doUploadIngreso()"><i class="bi bi-upload me-1"></i>Procesar</button>`);
-  initDropZone('dz', 'excelFile', file => {
-    readExcel(file, rows => {
-      document.getElementById('previewArea').innerHTML =
-        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
-    });
+  showSpreadsheet({
+    title: 'Carga masiva — Nuevo Ingreso',
+    initRows: 15,
+    columns: [
+      { key: 'full_name',      label: 'Nombre completo',      required: true,  width: 185,
+        placeholder: 'Ej. Karen Gonzalez' },
+      { key: 'cedula',         label: 'Cédula / CI',           required: true,  width: 110,
+        placeholder: 'Ej. 6868066' },
+      { key: 'personal_email', label: 'Email personal',        required: true,  width: 195,
+        placeholder: 'usuario@gmail.com' },
+      { key: 'role',           label: 'Tipo de usuario',       required: false, width: 140,
+        options: [
+          { value: 'student', label: 'Alumno'  },
+          { value: 'teacher', label: 'Docente' },
+        ] },
+      { key: 'program_type',   label: 'Programa',              required: false, width: 170,
+        options: [
+          { value: 'grado',     label: 'Grado (GA)'  },
+          { value: 'mba',       label: 'MBA'         },
+          { value: 'diplomado', label: 'Diplomado'   },
+        ] },
+      { key: 'program_name',   label: 'Nombre del diplomado',  required: false, width: 200,
+        placeholder: 'Solo si es Diplomado' },
+      { key: 'platform',       label: 'Crear en',              required: false, width: 165,
+        options: [
+          { value: 'both',   label: 'Canvas + Teams (ambos)' },
+          { value: 'canvas', label: 'Solo Canvas LMS'        },
+          { value: 'teams',  label: 'Solo Microsoft Teams'   },
+        ] },
+      { key: 'send_email',     label: 'Email de bienvenida',   required: false, width: 145,
+        options: [
+          { value: 'true',  label: 'Sí, enviar' },
+          { value: 'false', label: 'No enviar'  },
+        ] },
+    ],
+    onImport: async (rows) => {
+      const result = await api.post('/ingreso/bulk', {
+        students: rows.map(r => ({
+          full_name:      r.full_name,
+          cedula:         r.cedula,
+          personal_email: r.personal_email,
+          role:           r.role         || 'student',
+          platform:       r.platform     || 'both',
+          program_type:   r.program_type || 'grado',
+          program_name:   r.program_name || '',
+          send_email:     r.send_email   !== 'false',
+          cc:             [],
+        })),
+      });
+      if (result.succeeded) result.succeeded.forEach(r => addToLog(r));
+      return result;
+    },
   });
-}
-
-async function doUploadIngreso() {
-  const btn = document.getElementById('uploadBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/ingreso', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    if (res.succeeded) res.succeeded.forEach(r => addToLog(r));
-    toast(`Ingreso: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
 }
 </script>
 {% endblock %}
