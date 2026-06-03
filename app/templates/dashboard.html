@@ -278,11 +278,9 @@ function timeAgo(ts) {
 async function loadStats() {
   try {
     const s = await api.get('/stats');
-    document.getElementById('cnt-cu').textContent    = s.canvas_users   || '0';
-    document.getElementById('cnt-cc').textContent    = s.canvas_courses || '0';
-    document.getElementById('cnt-tu').textContent    = s.azure_users    || '0';
-    document.getElementById('cnt-jobs').textContent  = s.total_jobs     || '0';
-    document.getElementById('cnt-audit').textContent = s.audit_count    || '0';
+    document.getElementById('cnt-cu').textContent = s.canvas_users   || '0';
+    document.getElementById('cnt-cc').textContent = s.canvas_courses || '0';
+    document.getElementById('cnt-tu').textContent = s.azure_users    || '0';
 
     if (s.last_sync) {
       const mins = Math.round((Date.now() / 1000 - s.last_sync) / 60);
@@ -335,7 +333,7 @@ async function loadStats() {
     });
 
   } catch(e) {
-    ['cnt-cu','cnt-cc','cnt-tu','cnt-tt','cnt-jobs','cnt-audit'].forEach(id => {
+    ['cnt-cu','cnt-cc','cnt-tu','cnt-tt'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
   }
@@ -410,7 +408,7 @@ async function clearCache() {
 }
 
 function refreshAll() {
-  ['cnt-cu','cnt-cc','cnt-tu','cnt-tt','cnt-jobs','cnt-audit'].forEach(id => {
+  ['cnt-cu','cnt-cc','cnt-tu','cnt-tt'].forEach(id => {
     document.getElementById(id).innerHTML =
       '<span class="spinner-border spinner-border-sm"></span>';
   });

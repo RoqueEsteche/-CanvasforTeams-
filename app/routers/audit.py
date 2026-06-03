@@ -10,6 +10,49 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/audit", tags=["Audit Logs"])
 
 
+@router.get("/recent", summary="Actividad reciente para el dashboard")
+async def get_recent_activity(
+    limit: Annotated[int, Query(ge=1, le=200)] = 30,
+):
+    """Returns recent audit entries in the format expected by the dashboard."""
+    import time as _time
+    from datetime import datetime
+
+    def _map_action(method: str, endpoint: str) -> str:
+        ep = (endpoint or "").lower()
+        if "/auth/" in ep:           return "login"
+        if "/excel/" in ep:          return "import_bulk"
+        if method == "POST":         return "create"
+        if method in ("PUT", "PATCH"): return "update"
+        if method == "DELETE":       return "delete"
+        return "update"
+
+    def _to_ts(timestamp_str: str) -> int:
+        try:
+            dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            return int(dt.timestamp())
+        except Exception:
+            return int(_time.time())
+
+    try:
+        result = await audit_log.get_audit_logs(limit=limit, offset=0)
+        entries = [
+            {
+                "action":   _map_action(log.get("method", ""), log.get("endpoint", "")),
+                "resource": log.get("endpoint", "—"),
+                "status":   "ok" if 200 <= (log.get("status_code") or 200) < 400 else "error",
+                "detail":   log.get("details") or "",
+                "user":     log.get("username") or "sistema",
+                "ts":       _to_ts(log.get("timestamp", "")),
+            }
+            for log in result.get("logs", [])
+        ]
+        return {"entries": entries, "total": result.get("total", 0)}
+    except Exception as exc:
+        logger.error(f"Error getting recent activity: {exc}")
+        raise HTTPException(status_code=500, detail="Error retrieving recent activity")
+
+
 @router.get("/logs", summary="Obtener logs de auditoría")
 async def get_audit_logs(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
