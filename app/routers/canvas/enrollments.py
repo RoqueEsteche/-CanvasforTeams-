@@ -3,6 +3,7 @@ import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
+from app.core import cache as _cache
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -32,12 +33,22 @@ async def list_enrollments(
     state: Annotated[list[str] | None, Query()] = None,
     per_page: Annotated[int, Query(ge=1, le=100)] = 50,
 ):
+    type_key  = ",".join(sorted(type))  if type  else ""
+    state_key = ",".join(sorted(state)) if state else ""
+    cache_key = f"canvas:enrollments:{course_id}:{type_key}:{state_key}:{per_page}"
+
+    cached = _cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     params: dict = {"per_page": per_page}
     if type:
         params["type[]"] = type
     if state:
         params["state[]"] = state
-    return await canvas.paginate(f"/courses/{course_id}/enrollments", params)
+    result = await canvas.paginate(f"/courses/{course_id}/enrollments", params)
+    _cache.set(cache_key, result, ttl=300)
+    return result
 
 
 @router.post("", status_code=201, summary="Matricular usuario individual")
@@ -56,7 +67,8 @@ async def enroll_user(course_id: str, body: CanvasEnrollmentCreate):
         payload["enrollment"]["course_section_id"] = body.course_section_id
     try:
         data = await canvas.post(f"/courses/{course_id}/enrollments", payload)
-        await database.upsert_enrollments(course_id, [data])
+        await database.upsert_enrollments([data])
+        _cache.invalidate(f"canvas:enrollments:{course_id}:")
         return data
     except StarletteHTTPException:
         raise
@@ -76,6 +88,7 @@ async def unenroll_user(
             {"task": task},
         )
         await database.delete_enrollment(enrollment_id)
+        _cache.invalidate(f"canvas:enrollments:{course_id}:")
         return data
     except StarletteHTTPException:
         raise

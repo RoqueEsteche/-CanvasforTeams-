@@ -3,6 +3,7 @@ import asyncio
 import logging
 from typing import Annotated
 from datetime import datetime
+from fastapi.background import BackgroundTasks
 
 from fastapi import APIRouter, HTTPException, Query
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -22,16 +23,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/canvas/courses", tags=["Canvas · Courses"])
 _ACCOUNT = settings.canvas_account_id
 
-# TTL de 5 min para la lista de cursos (datos que cambian poco)
-_COURSES_TTL = 300
+# TTL largo: cursos cambian poco (30 min)
+_COURSES_TTL = 1800
+_COURSES_STALE_TTL = 3600  # Mantiene en caché 1h, refresca en background
 
 
 def _courses_cache_key(search_term: str | None, state_key: str, per_page: int) -> str:
     return f"canvas:courses:{search_term or ''}:{state_key}:{per_page}"
 
 
+async def _fetch_and_cache_courses(cache_key: str, params: dict) -> list:
+    """Fetches courses from Canvas API and stores in cache + DB."""
+    try:
+        result = await canvas.paginate_limited(
+            f"/accounts/{_ACCOUNT}/courses", params, max_records=1000
+        )
+        await database.upsert_courses(result)
+        await database.mark_synced("canvas_courses")
+        _cache.set(cache_key, result, ttl=_COURSES_STALE_TTL)
+        return result
+    except Exception as exc:
+        logger.error(f"Error refrescando caché de cursos: {exc}")
+        return []
+
+
 @router.get("", summary="Listar cursos de la cuenta")
 async def list_courses(
+    background_tasks: BackgroundTasks,
     search_term: Annotated[str | None, Query()] = None,
     state: Annotated[list[str] | None, Query()] = None,
     per_page: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -39,19 +57,20 @@ async def list_courses(
     state_key = ",".join(sorted(state)) if state else ""
     cache_key = _courses_cache_key(search_term, state_key, per_page)
     cached = _cache.get(cache_key)
-    if cached is not None:
-        return cached
 
     params: dict = {"per_page": per_page}
     if search_term:
         params["search_term"] = search_term
     if state:
         params["state[]"] = state
-    result = await canvas.paginate_limited(f"/accounts/{_ACCOUNT}/courses", params, max_records=1000)
-    await database.upsert_courses(result)
-    await database.mark_synced("canvas_courses")
-    _cache.set(cache_key, result, ttl=_COURSES_TTL)
-    return result
+
+    if cached is not None:
+        # Stale-while-revalidate: devolver caché inmediatamente y refrescar en background
+        background_tasks.add_task(_fetch_and_cache_courses, cache_key, params)
+        return cached
+
+    # Primera carga: esperar la API
+    return await _fetch_and_cache_courses(cache_key, params)
 
 
 @router.get("/{course_id}", summary="Obtener curso por ID")
@@ -272,20 +291,21 @@ async def get_attendance(course_id: str):
 
         logger.info(f"Matriz con {len(attendance_matrix)} estudiantes x {len(attendance_dates)} fechas")
 
+        # Formato compatible con el template del frontend
+        # dates: {date_str: date_str} — objeto para Object.keys()
+        # attendance: {student_id: {date: status}}
+        # students: [{id, name, login}]
+        dates_obj = {d: d for d in attendance_dates}
+
         return {
             "course": {
                 "id": int(course_id),
                 "name": course_name,
                 "instructor": instructor_name,
             },
-            "attendance_dates": attendance_dates,
-            "students": [
-                {
-                    **students_map[uid],
-                    "attendance": attendance_matrix.get(str(uid), {date: "" for date in attendance_dates})
-                }
-                for uid in sorted(student_ids)
-            ],
+            "dates": dates_obj,
+            "attendance": attendance_matrix,
+            "students": list(students_map.values()),
             "summary": {
                 "total_students": len(student_ids),
                 "total_dates": len(attendance_dates),

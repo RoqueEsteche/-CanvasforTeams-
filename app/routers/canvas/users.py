@@ -1,8 +1,12 @@
 ﻿"""Canvas user management endpoints."""
 import asyncio
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.background import BackgroundTasks
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -26,26 +30,45 @@ class BulkDeleteRequest(BaseModel):
     ids: list[str]
 
 
+_USERS_TTL = 3600  # 1h en caché, refresca en background
+
+
+async def _fetch_and_cache_users(cache_key: str, params: dict, max_records: int) -> list:
+    """Fetches users from Canvas API and stores in cache + DB."""
+    try:
+        result = await canvas.paginate_limited(
+            f"/accounts/{_ACCOUNT}/users", params, max_records
+        )
+        await database.upsert_canvas_users(result)
+        await database.mark_synced("canvas_users")
+        cache.set(cache_key, result, ttl=_USERS_TTL)
+        return result
+    except Exception as exc:
+        logger.error(f"Error refrescando caché de usuarios: {exc}")
+        return []
+
+
 @router.get("", summary="Listar usuarios de la cuenta")
 async def list_users(
+    background_tasks: BackgroundTasks,
     search_term: Annotated[str | None, Query(description="Buscar por nombre o email")] = None,
     per_page: Annotated[int, Query(ge=1, le=100)] = 100,
     max_records: Annotated[int, Query(ge=1, le=5000)] = 1000,
 ):
     cache_key = f"canvas:users:{search_term or ''}:{per_page}:{max_records}"
     cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
 
-    # Always fetch from Canvas API for full accuracy
     params: dict = {"per_page": per_page}
     if search_term:
         params["search_term"] = search_term
-    result = await canvas.paginate_limited(f"/accounts/{_ACCOUNT}/users", params, max_records)
-    await database.upsert_canvas_users(result)
-    await database.mark_synced("canvas_users")
-    cache.set(cache_key, result, ttl=300)
-    return result
+
+    if cached is not None:
+        # Stale-while-revalidate: respuesta inmediata + refresco en background
+        background_tasks.add_task(_fetch_and_cache_users, cache_key, params, max_records)
+        return cached
+
+    # Primera carga: esperar la API
+    return await _fetch_and_cache_users(cache_key, params, max_records)
 
 
 @router.get("/{user_id}", summary="Obtener usuario por ID")
