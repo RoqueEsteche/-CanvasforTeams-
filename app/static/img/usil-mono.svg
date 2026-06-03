@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- USIL monogram simplified -->
+  <circle cx="60" cy="72" r="28" stroke="currentColor" stroke-width="6" fill="none"/>
+  <!-- U -->
+  <path d="M22 28 L22 52 Q22 62 32 62 Q42 62 42 52 L42 28" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- S curl -->
+  <path d="M52 68 Q44 60 52 52 Q60 44 68 52 Q76 60 68 68 Q60 76 52 84 Q44 92 52 98" stroke="currentColor" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <!-- I -->
+  <line x1="72" y1="30" x2="72" y2="72" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+  <line x1="65" y1="30" x2="79" y2="30" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  <!-- L -->
+  <line x1="82" y1="30" x2="82" y2="72" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+  <line x1="82" y1="72" x2="104" y2="72" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+</svg>

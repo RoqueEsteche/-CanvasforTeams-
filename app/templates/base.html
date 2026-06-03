@@ -6,21 +6,15 @@
   <title>{% block title %}USIL – Gestión TI{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="/static/css/style.css?v=8" rel="stylesheet">
+  <link href="/static/css/style.css?v=9" rel="stylesheet">
 </head>
 <body>
 
 <!-- Sidebar -->
 <nav id="sidebar">
-  <a href="/ui/home" style="text-decoration: none; color: inherit;">
+  <a href="/ui/home" class="sidebar-brand-link">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">
-        <i class="bi bi-mortarboard-fill"></i>
-      </div>
-      <div class="sidebar-brand-text">
-        <span class="sidebar-brand-title">USIL</span>
-        <span class="sidebar-brand-sub">Gestión TI</span>
-      </div>
+      <img src="/static/img/usil-logo-white.svg" alt="USIL – Universidad San Ignacio de Loyola" class="sidebar-brand-logo">
     </div>
   </a>
 
@@ -41,15 +35,17 @@
   <a href="/ui/jobs"               class="sidebar-link {% block nav_jh %}{% endblock %}"><i class="bi bi-clipboard-list"></i><span>Historial Trabajos</span></a>
 
   <div class="sidebar-footer">
-    <span>v1.1.0</span>
+    <span>Área de TI · v1.1.0</span>
   </div>
 </nav>
 
-<!-- Backdrop para mobile -->
+<!-- Backdrop mobile -->
 <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
 <!-- Main -->
 <div id="main-content">
+
+  <!-- Topbar -->
   <div class="topbar">
     <button type="button" class="btn btn-sm btn-icon me-2" onclick="toggleSidebar()" title="Menú" aria-label="Abrir menú">
       <i class="bi bi-list fs-5"></i>
@@ -57,13 +53,14 @@
 
     <span class="topbar-breadcrumb d-none d-md-inline">{% block breadcrumb %}{% endblock %}</span>
 
-    <!-- Global search -->
+    <!-- Búsqueda global -->
     <div id="gsearch-wrap" class="mx-3 d-none d-lg-block">
       <i class="bi bi-search" id="gsearch-icon"></i>
       <input type="text" id="gsearch-input" placeholder="Buscar usuarios, cursos..." autocomplete="off"
              oninput="onGlobalSearch(this.value)"
-             onblur="setTimeout(()=>document.getElementById('gsearch-results').style.display='none',200)">
-      <div id="gsearch-results"></div>
+             onblur="setTimeout(()=>document.getElementById('gsearch-results').style.display='none',200)"
+             title="Búsqueda global" aria-label="Búsqueda global">
+      <div id="gsearch-results" role="listbox"></div>
     </div>
 
     <div class="topbar-right ms-auto">
@@ -84,21 +81,32 @@
     </div>
   </div>
 
+  <!-- Contenido -->
   <div class="page-body">
     {% block content %}{% endblock %}
   </div>
+
+  <!-- Footer institucional -->
+  <footer class="page-footer">
+    <div class="d-flex align-items-center gap-2">
+      <img src="/static/img/usil-logo.svg" alt="USIL" class="footer-logo">
+      <span>© 2026 Universidad San Ignacio de Loyola — Área de Tecnologías de la Información</span>
+    </div>
+    <div class="footer-links">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/audit">Auditoría</a>
+      <a href="/docs" target="_blank">API Docs</a>
+    </div>
+  </footer>
+
 </div>
 
 <!-- Toast container -->
-<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999"></div>
+<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite"></div>
 
 <!-- Floating bulk-action bar -->
-<div id="bulk-bar"
-     style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-            z-index:1050;min-width:340px;max-width:600px;
-            background:var(--card-bg);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.2);
-            padding:12px 20px;align-items:center;gap:14px;border:1px solid var(--card-border)">
-  <i class="bi bi-check2-square fs-5 text-primary"></i>
+<div id="bulk-bar" role="toolbar" aria-label="Acciones sobre selección">
+  <i class="bi bi-check2-square fs-5 text-primary" aria-hidden="true"></i>
   <span id="bulk-count" class="fw-semibold"></span>
   <button type="button" class="btn btn-danger btn-sm ms-auto"
           onclick="bulkDeleteConfirm(document.getElementById('bulk-bar').dataset.container)">
@@ -110,7 +118,7 @@
   </button>
 </div>
 
-<!-- Global modal -->
+<!-- Modal global -->
 <div class="modal fade" id="globalModal" tabindex="-1" aria-modal="true" role="dialog">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -118,13 +126,13 @@
         <h5 class="modal-title" id="globalModalTitle"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
-      <div class="modal-body" id="globalModalBody" style="overflow-y:auto;max-height:70vh"></div>
+      <div class="modal-body" id="globalModalBody"></div>
       <div class="modal-footer" id="globalModalFooter"></div>
     </div>
   </div>
 </div>
 
-<!-- Confirm modal -->
+<!-- Modal confirmación -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-modal="true" role="dialog">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -132,7 +140,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body text-center pt-0 px-4 pb-2">
-        <div id="confirmIcon" class="mb-3" style="font-size:3rem;color:#e74a3b">
+        <div id="confirmIcon" class="mb-3">
           <i class="bi bi-exclamation-triangle-fill"></i>
         </div>
         <h5 id="confirmTitle" class="fw-bold mb-2">¿Confirmar acción?</h5>
