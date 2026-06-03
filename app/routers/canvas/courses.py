@@ -42,13 +42,6 @@ async def list_courses(
     if cached is not None:
         return cached
 
-    # Serve from local DB if data is fresh (avoids Canvas API round-trip)
-    if not await database.is_stale("canvas_courses") and await database.count_courses() > 0:
-        db_result = await database.get_courses(search_term)
-        if db_result:
-            _cache.set(cache_key, db_result, ttl=_COURSES_TTL)
-            return db_result
-
     params: dict = {"per_page": per_page}
     if search_term:
         params["search_term"] = search_term

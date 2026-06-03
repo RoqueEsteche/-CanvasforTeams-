@@ -37,31 +37,14 @@ async def list_users(
     if cached is not None:
         return cached
 
-    # Try local DB first (instant, no API call)
-    if search_term and len(search_term) >= 2:
-        try:
-            db_result = await database.search_canvas_users(search_term, max_records)
-            if db_result:
-                cache.set(cache_key, db_result, ttl=600)
-                return db_result
-        except Exception:
-            pass
-
-    # Serve full list from local DB if data is fresh
-    if not await database.is_stale("canvas_users") and await database.count_canvas_users() > 0:
-        db_result = await database.get_canvas_users()
-        if db_result:
-            cache.set(cache_key, db_result, ttl=600)
-            return db_result
-
-    # Fallback to Canvas API (live data, slower)
+    # Always fetch from Canvas API for full accuracy
     params: dict = {"per_page": per_page}
     if search_term:
         params["search_term"] = search_term
     result = await canvas.paginate_limited(f"/accounts/{_ACCOUNT}/users", params, max_records)
     await database.upsert_canvas_users(result)
     await database.mark_synced("canvas_users")
-    cache.set(cache_key, result, ttl=600)
+    cache.set(cache_key, result, ttl=300)
     return result
 
 
