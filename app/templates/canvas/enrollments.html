@@ -7,14 +7,13 @@
   <div><div class="page-title">Matrículas Canvas</div><div class="page-subtitle">Gestión de matrículas masivas e individuales</div></div>
   <div class="ms-auto d-flex gap-2 flex-wrap">
     <button class="btn btn-success" onclick="openEnrollOne()"><i class="bi bi-person-plus-fill me-1"></i>Matricular</button>
-    <button class="btn btn-primary" onclick="openExcelEnroll()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Excel Masivo</button>
-    <a href="/excel/template/canvas-enrollments" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+    <button class="btn btn-primary" onclick="openExcelEnroll()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
   </div>
 </div>
 
 <!-- Course selector -->
-<div class="position-relative mb-3" style="z-index:50">
-  <div class="table-card">
+<div class="mb-3">
+  <div class="table-card table-card-open">
     <div class="card-header gap-2 flex-wrap">
       <label class="form-label mb-0 me-2 fw-semibold">Curso:</label>
       <div class="enroll-course-selector">
@@ -281,46 +280,94 @@ function unenrollOne(enrollId, userId) {
 }
 
 function openExcelEnroll() {
-  showModal('Matrículas masivas desde Excel', `
-    <p class="text-muted small">Columnas requeridas: <code>course_id, user_id, type</code> — Opcionales: <code>enrollment_state, notify</code></p>
-    <p class="text-muted small"><strong>Valores de type:</strong> StudentEnrollment, TeacherEnrollment, TaEnrollment, ObserverEnrollment</p>
-    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
-    <div id="previewArea" class="mt-3"></div>
-    <div id="resultArea" class="mt-3"></div>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-     <button class="btn btn-warning" id="unenrollBtn" onclick="doUploadUnenroll()"><i class="bi bi-person-dash me-1"></i>Desmatricular masivo</button>
-     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadEnroll()"><i class="bi bi-upload me-1"></i>Matricular masivo</button>`);
-  initDropZone('dz', 'excelFile', file => {
-    readExcel(file, rows => {
-      document.getElementById('previewArea').innerHTML =
-        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
+  const courseId   = _selectedCourseId;
+  const courseName = _courseNames[String(courseId)] || courseId;
+
+  if (!courseId) {
+    // Sin curso seleccionado: planilla con columna course_id
+    showSpreadsheet({
+      title: 'Matrículas masivas (múltiples cursos)',
+      columns: [
+        { key: 'course_id', label: 'ID Curso',   required: true, width: 90 },
+        { key: 'user_id',   label: 'ID Usuario', required: true, width: 90 },
+        { key: 'type',      label: 'Rol',         required: true, width: 170,
+          options: [
+            { value: 'StudentEnrollment',  label: 'Estudiante'      },
+            { value: 'TeacherEnrollment',  label: 'Profesor'        },
+            { value: 'TaEnrollment',       label: 'Asistente (TA)'  },
+            { value: 'ObserverEnrollment', label: 'Observador'      },
+          ] },
+        { key: 'enrollment_state', label: 'Estado', required: false, width: 110,
+          options: [
+            { value: 'active',  label: 'Activo'   },
+            { value: 'invited', label: 'Invitado' },
+          ] },
+      ],
+      onImport: async (rows) => {
+        // Agrupar por course_id y llamar bulk por curso
+        const byCourse = {};
+        rows.forEach(r => {
+          if (!byCourse[r.course_id]) byCourse[r.course_id] = [];
+          byCourse[r.course_id].push(r);
+        });
+        const result = { succeeded: [], failed: [] };
+        for (const [cid, enrs] of Object.entries(byCourse)) {
+          try {
+            const res = await api.post('/canvas/enrollments/bulk/enroll', {
+              course_id: cid,
+              enrollments: enrs.map(r => ({
+                user_id: r.user_id,
+                type: r.type || 'StudentEnrollment',
+                enrollment_state: r.enrollment_state || 'active',
+                notify: false,
+              })),
+            });
+            result.succeeded.push(...(res.succeeded || []));
+            result.failed.push(...(res.failed || []));
+          } catch(e) {
+            result.failed.push({ input: { course_id: cid }, error: e.message });
+          }
+        }
+        loadEnrollments();
+        return result;
+      },
     });
+    return;
+  }
+
+  // Con curso ya seleccionado: planilla sin course_id
+  showSpreadsheet({
+    title: `Matrículas masivas — [${courseId}] ${courseName}`,
+    columns: [
+      { key: 'user_id', label: 'ID Usuario', required: true, width: 110,
+        placeholder: 'Canvas User ID' },
+      { key: 'type',    label: 'Rol',         required: true, width: 170,
+        options: [
+          { value: 'StudentEnrollment',  label: 'Estudiante'      },
+          { value: 'TeacherEnrollment',  label: 'Profesor'        },
+          { value: 'TaEnrollment',       label: 'Asistente (TA)'  },
+          { value: 'ObserverEnrollment', label: 'Observador'      },
+        ] },
+      { key: 'enrollment_state', label: 'Estado', required: false, width: 110,
+        options: [
+          { value: 'active',  label: 'Activo'   },
+          { value: 'invited', label: 'Invitado' },
+        ] },
+    ],
+    onImport: async (rows) => {
+      const result = await api.post('/canvas/enrollments/bulk/enroll', {
+        course_id: courseId,
+        enrollments: rows.map(r => ({
+          user_id:          r.user_id,
+          type:             r.type             || 'StudentEnrollment',
+          enrollment_state: r.enrollment_state || 'active',
+          notify: false,
+        })),
+      });
+      loadEnrollments();
+      return result;
+    },
   });
-}
-
-async function doUploadEnroll() {
-  const btn = document.getElementById('uploadBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/canvas/enrollments', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    toast(`Matrículas: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-    loadEnrollments();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
-}
-
-async function doUploadUnenroll() {
-  const btn = document.getElementById('unenrollBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/canvas/unenrollments', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    toast(`Desmatrículas: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-    loadEnrollments();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
 }
 
 let _searchTimer = null;

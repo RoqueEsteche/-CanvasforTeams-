@@ -849,6 +849,127 @@ html.dark-mode .att-l { background: rgba(198,138,10,.2); color: #ffc107; }
 .enroll-course-item:last-child { border-bottom: none; }
 .enroll-course-item:hover { background: var(--table-hover-bg); }
 
+/* ══════════════════════════════════════════════
+   Web Spreadsheet  —  planilla de carga masiva
+   ══════════════════════════════════════════════ */
+.ss-wrap { display: flex; flex-direction: column; gap: 10px; }
+
+.ss-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; padding: 4px 0;
+}
+
+.ss-paste-hint {
+  font-size: .78rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: 5px;
+}
+kbd {
+  background: var(--header-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: .72rem;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.ss-grid-wrap {
+  overflow: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  max-height: 56vh;
+}
+
+.ss-table {
+  border-collapse: collapse;
+  font-size: .82rem;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+/* Header */
+.ss-table thead th {
+  background: #1C2A3A;
+  color: rgba(255,255,255,.82);
+  padding: 8px 10px;
+  border-right: 1px solid rgba(255,255,255,.09);
+  border-bottom: 2px solid rgba(255,255,255,.14);
+  white-space: nowrap;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  position: sticky; top: 0; z-index: 2;
+}
+html.dark-mode .ss-table thead th { background: #0E1820; }
+.ss-th-num    { width: 36px; min-width: 36px; text-align: center; }
+.ss-th-status { width: 72px; min-width: 72px; text-align: center; }
+.ss-th-req::after { content: ' ✱'; color: #f85149; font-size: .6rem; }
+
+/* Cells */
+.ss-table td {
+  padding: 0;
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: middle;
+}
+.ss-num {
+  padding: 4px 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: .7rem;
+  background: var(--header-bg);
+  border-right: 2px solid var(--card-border) !important;
+  -webkit-user-select: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.ss-table tbody tr:hover .ss-num {
+  background: var(--accent-light);
+  color: var(--canvas-blue);
+}
+
+.ss-cell {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 5px 9px;
+  font-size: .82rem;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  display: block;
+}
+.ss-cell:focus {
+  background: var(--accent-light);
+  outline: 2px solid var(--canvas-blue);
+  outline-offset: -2px;
+}
+select.ss-cell { cursor: pointer; }
+.ss-cell.ss-cell-error {
+  background: rgba(199,0,61,.1);
+  outline: 2px solid var(--canvas-red);
+  outline-offset: -2px;
+}
+.ss-cell.ss-cell-ok { background: rgba(11,135,75,.07); }
+
+/* Status column */
+.ss-status-cell {
+  width: 72px; min-width: 72px;
+  text-align: center; padding: 3px 4px;
+  font-size: .72rem;
+}
+
+/* Results banner */
+.ss-result-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid;
+  font-size: .87rem;
+}
+.ss-result-ok  { border-color: var(--canvas-green); background: rgba(11,135,75,.07); }
+.ss-result-err { border-color: var(--canvas-yellow); background: rgba(198,138,10,.07); }
+
 /* ── 44. Canvas color utilities ── */
 .text-canvas-blue   { color: var(--canvas-blue)   !important; }
 .text-canvas-orange { color: var(--canvas-orange) !important; }
@@ -887,6 +1008,14 @@ html.dark-mode .att-l { background: rgba(198,138,10,.2); color: #ffc107; }
 /* Filter selects in card headers */
 .filter-select-sm { max-width: 170px; }
 .filter-select-md { max-width: 190px; }
+
+/* Allow dropdowns to overflow — overrides the default overflow:hidden on table-card */
+.table-card-open {
+  overflow: visible;
+  /* z-index needed so this card sits above the enrollment table below */
+  position: relative;
+  z-index: 10;
+}
 
 /* Dashboard card header icon spacing */
 .dash-card-icon { margin-right: .5rem; }

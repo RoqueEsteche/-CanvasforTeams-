@@ -8,8 +8,7 @@
   <div class="ms-auto d-flex gap-2 flex-wrap">
     <button class="btn btn-info" onclick="openBulkAttendanceDownload()" title="Descargar reportes de asistencia de varios cursos a la vez"><i class="bi bi-download me-1"></i>Reportes Asistencias</button>
     <button class="btn btn-success" onclick="openCreateCourse()"><i class="bi bi-plus-circle-fill me-1"></i>Crear curso</button>
-    <button class="btn btn-primary" onclick="openExcelCourses()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel</button>
-    <a href="/excel/template/canvas-courses" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+    <button class="btn btn-primary" onclick="openExcelCourses()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
   </div>
 </div>
 
@@ -435,32 +434,30 @@ function downloadAttendanceExcel(courseId, courseName) {
 }
 
 function openExcelCourses() {
-  showModal('Importar cursos desde Excel', `
-    <p class="text-muted small">Columnas requeridas: <code>name, course_code</code> — Opcionales: <code>sis_course_id, start_at, end_at</code></p>
-    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
-    <div id="previewArea" class="mt-3"></div>
-    <div id="resultArea" class="mt-3"></div>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadCourses()"><i class="bi bi-upload me-1"></i>Importar</button>`);
-  initDropZone('dz', 'excelFile', file => {
-    readExcel(file, rows => {
-      document.getElementById('previewArea').innerHTML =
-        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
-    });
+  showSpreadsheet({
+    title: 'Carga masiva de cursos Canvas',
+    columns: [
+      { key: 'name',          label: 'Nombre del curso',  required: true,  width: 220 },
+      { key: 'course_code',   label: 'Código',             required: true,  width: 120 },
+      { key: 'sis_course_id', label: 'SIS Course ID',      required: false, width: 130, placeholder: 'ej. MAT101-2026' },
+      { key: 'start_at',      label: 'Inicio',             required: false, width: 110, placeholder: 'YYYY-MM-DD' },
+      { key: 'end_at',        label: 'Fin',                required: false, width: 110, placeholder: 'YYYY-MM-DD' },
+    ],
+    onImport: async (rows) => {
+      const result = await api.post('/canvas/courses/bulk', {
+        courses: rows.map(r => ({
+          name:          r.name,
+          course_code:   r.course_code,
+          sis_course_id: r.sis_course_id || null,
+          start_at:      r.start_at      || null,
+          end_at:        r.end_at        || null,
+        })),
+      });
+      _cache?.invalidate?.('canvas:courses:');
+      loadCourses();
+      return result;
+    },
   });
-}
-
-async function doUploadCourses() {
-  const btn = document.getElementById('uploadBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/canvas/courses', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-    loadCourses();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
 }
 
 function openBulkAttendanceDownload() {

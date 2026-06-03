@@ -7,8 +7,7 @@
   <div><div class="page-title">Usuarios Canvas</div><div class="page-subtitle">Gestión de usuarios de la plataforma</div></div>
   <div class="ms-auto d-flex gap-2 flex-wrap">
     <button type="button" class="btn btn-success" onclick="openCreateUser()"><i class="bi bi-person-plus-fill me-1"></i>Crear usuario</button>
-    <button type="button" class="btn btn-primary" onclick="openExcelUsers()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Importar Excel</button>
-    <a href="/excel/template/canvas-users" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+    <button type="button" class="btn btn-primary" onclick="openExcelUsers()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
   </div>
 </div>
 
@@ -388,32 +387,30 @@ function deleteUser(id, name) {
 }
 
 function openExcelUsers() {
-  showModal('Importar usuarios desde Excel', `
-    <p class="text-muted small">Columnas requeridas: <code>name, email, login_id</code> — Opcionales: <code>password, sis_user_id</code></p>
-    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
-    <div id="previewArea" class="mt-3"></div>
-    <div id="resultArea" class="mt-3"></div>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadUsers()"><i class="bi bi-upload me-1"></i>Importar</button>`);
-  initDropZone('dz', 'excelFile', file => {
-    readExcel(file, rows => {
-      document.getElementById('previewArea').innerHTML =
-        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
-    });
+  showSpreadsheet({
+    title: 'Carga masiva de usuarios Canvas',
+    columns: [
+      { key: 'name',        label: 'Nombre completo', required: true,  width: 170 },
+      { key: 'email',       label: 'Email',            required: true,  width: 190 },
+      { key: 'login_id',    label: 'Login (usuario)',  required: true,  width: 140 },
+      { key: 'sis_user_id', label: 'SIS User ID',      required: false, width: 110, placeholder: 'Cédula / ID' },
+      { key: 'password',    label: 'Contraseña',       required: false, width: 120 },
+    ],
+    onImport: async (rows) => {
+      const result = await api.post('/canvas/users/bulk', {
+        users: rows.map(r => ({
+          name:             r.name,
+          email:            r.email,
+          login_id:         r.login_id,
+          sis_user_id:      r.sis_user_id  || null,
+          password:         r.password     || null,
+          send_confirmation: false,
+        })),
+      });
+      loadUsers();
+      return result;
+    },
   });
-}
-
-async function doUploadUsers() {
-  const btn = document.getElementById('uploadBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/canvas/users', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-    loadUsers();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
 }
 
 loadUsers();

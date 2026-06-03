@@ -478,6 +478,328 @@ function renderBulkResult(result, containerId) {
   return html;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Web Spreadsheet  —  planilla de carga masiva en el navegador
+   Reemplaza la importación por Excel: el usuario escribe o pega
+   datos directamente (Ctrl+V desde Excel/Sheets funciona).
+   ══════════════════════════════════════════════════════════════ */
+
+let _ss = null; // estado activo de la planilla
+
+/**
+ * Abre la planilla modal de carga masiva.
+ *
+ * @param {object} cfg
+ *   title    {string}   Título del modal
+ *   columns  {Array}    Columnas: { key, label, required, width, type, options, placeholder }
+ *   onImport {async fn} Recibe rows[] y devuelve { succeeded, failed }
+ *   initRows {number}   Filas vacías iniciales (default 20)
+ */
+function showSpreadsheet(cfg) {
+  _ss = { cfg, focusRow: 0, focusCol: 0 };
+
+  const heads = cfg.columns.map(c =>
+    `<th class="ss-th${c.required ? ' ss-th-req' : ''}" style="min-width:${c.width || 120}px">${c.label}</th>`
+  ).join('');
+
+  // Ampliar modal a XL
+  const dlg = document.querySelector('#globalModal .modal-dialog');
+  if (dlg) dlg.className = 'modal-dialog modal-xl modal-dialog-scrollable';
+
+  showModal(cfg.title, `
+    <div class="ss-wrap">
+      <div class="ss-toolbar">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="_ssAddRows(10)">
+          <i class="bi bi-plus me-1"></i>+10 filas
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="_ssClearAll()">
+          <i class="bi bi-eraser me-1"></i>Limpiar
+        </button>
+        <span class="ss-paste-hint">
+          <i class="bi bi-clipboard-check"></i>
+          Pegá datos de Excel / Google Sheets con <kbd>Ctrl+V</kbd>
+        </span>
+        <span id="ss-row-count" class="ms-auto text-muted small fw-semibold"></span>
+      </div>
+
+      <div class="ss-grid-wrap" id="ss-grid-wrap">
+        <table class="ss-table" id="ss-table">
+          <thead>
+            <tr>
+              <th class="ss-th-num">#</th>
+              ${heads}
+              <th class="ss-th-status">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="ss-body"></tbody>
+        </table>
+      </div>
+
+      <div id="ss-results"></div>
+    </div>`,
+    `<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button type="button" class="btn btn-primary px-4" id="ss-import-btn" onclick="_ssDoImport()">
+       <i class="bi bi-upload me-1"></i>Importar datos
+     </button>`
+  );
+
+  _ssRebuild(cfg.initRows || 20);
+
+  // Capturar Ctrl+V en el grid
+  document.getElementById('ss-grid-wrap')
+    ?.addEventListener('paste', _ssPaste, true);
+}
+
+/* ── Construcción de filas ── */
+
+function _ssRebuild(n) {
+  const tbody = document.getElementById('ss-body');
+  if (!tbody || !_ss) return;
+  tbody.innerHTML = '';
+  for (let r = 0; r < n; r++) tbody.appendChild(_ssMakeRow(r));
+  _ssUpdateCount();
+}
+
+function _ssMakeRow(r, data = {}) {
+  const tr = document.createElement('tr');
+  tr.dataset.r = r;
+
+  // Número de fila
+  const numTd = document.createElement('td');
+  numTd.className = 'ss-num';
+  numTd.textContent = r + 1;
+  tr.appendChild(numTd);
+
+  // Celdas de datos
+  _ss.cfg.columns.forEach((col, c) => {
+    const td = document.createElement('td');
+    let el;
+
+    if (col.options) {
+      el = document.createElement('select');
+      el.className = 'ss-cell';
+      const empty = document.createElement('option');
+      empty.value = ''; empty.textContent = col.required ? '— seleccionar —' : '(opcional)';
+      el.appendChild(empty);
+      col.options.forEach(opt => {
+        const o = document.createElement('option');
+        o.value       = opt.value ?? opt;
+        o.textContent = opt.label ?? opt;
+        if (data[col.key] === o.value) o.selected = true;
+        el.appendChild(o);
+      });
+      el.addEventListener('change', _ssUpdateCount);
+    } else {
+      el = document.createElement('input');
+      el.type = col.type || 'text';
+      el.className = 'ss-cell';
+      el.value = data[col.key] ?? '';
+      if (col.placeholder) el.placeholder = col.placeholder;
+      el.addEventListener('input', _ssUpdateCount);
+    }
+
+    el.dataset.r = r; el.dataset.c = c;
+    el.addEventListener('keydown', _ssKey);
+    el.addEventListener('focus',   () => { _ss.focusRow = r; _ss.focusCol = c; });
+
+    td.appendChild(el);
+    tr.appendChild(td);
+  });
+
+  // Celda de estado
+  const stTd = document.createElement('td');
+  stTd.className = 'ss-status-cell'; stTd.id = `ss-s-${r}`;
+  tr.appendChild(stTd);
+
+  return tr;
+}
+
+/* ── Navegación con teclado ── */
+
+function _ssKey(e) {
+  const r    = +e.target.dataset.r;
+  const c    = +e.target.dataset.c;
+  const cols = _ss.cfg.columns.length;
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (!e.shiftKey) { c + 1 < cols ? _ssFocus(r, c + 1) : _ssFocus(r + 1, 0); }
+    else             { c > 0        ? _ssFocus(r, c - 1) : _ssFocus(r - 1, cols - 1); }
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); _ssFocus(r + 1, c);
+  } else if (e.key === 'ArrowDown' && e.ctrlKey) {
+    e.preventDefault(); _ssFocus(r + 1, c);
+  } else if (e.key === 'ArrowUp' && e.ctrlKey) {
+    e.preventDefault(); _ssFocus(r - 1, c);
+  }
+}
+
+function _ssFocus(r, c) {
+  const tbody = document.getElementById('ss-body');
+  if (!tbody) return;
+  if (r >= tbody.rows.length) { _ssAddRows(5); setTimeout(() => _ssFocus(r, c), 60); return; }
+  if (r < 0) return;
+  tbody.rows[r]?.querySelector(`.ss-cell[data-c="${c}"]`)?.focus();
+}
+
+/* ── Pegar desde Excel / Google Sheets ── */
+
+function _ssPaste(e) {
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (!text || !_ss) return;
+
+  const lines    = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rowData  = lines.filter(l => l.trim()).map(l => l.split('\t'));
+  if (!rowData.length) return;
+
+  // Detectar y omitir fila de cabeceras
+  const labels   = _ss.cfg.columns.map(c => c.label.toLowerCase());
+  const keys     = _ss.cfg.columns.map(c => c.key.toLowerCase());
+  const firstRow = rowData[0].map(v => v.trim().toLowerCase());
+  const isHeader = firstRow.length > 0 && firstRow.some(v =>
+    labels.some(l => l.includes(v) || v.includes(l.split(' ')[0])) ||
+    keys.some(k => k.startsWith(v) || v === k)
+  );
+  const data = isHeader ? rowData.slice(1) : rowData;
+  if (!data.length) return;
+
+  e.preventDefault();
+
+  const startR = document.activeElement?.dataset?.r != null ? +document.activeElement.dataset.r : 0;
+  const startC = document.activeElement?.dataset?.c != null ? +document.activeElement.dataset.c : 0;
+
+  // Agregar filas si hacen falta
+  const tbody   = document.getElementById('ss-body');
+  const needed  = startR + data.length + 3;
+  while (tbody.rows.length < needed) tbody.appendChild(_ssMakeRow(tbody.rows.length));
+
+  // Llenar celdas
+  data.forEach((cols, ri) => {
+    cols.forEach((val, ci) => {
+      const colIdx = startC + ci;
+      if (colIdx >= _ss.cfg.columns.length) return;
+      const cell = tbody.rows[startR + ri]?.querySelector(`.ss-cell[data-c="${colIdx}"]`);
+      if (cell) {
+        cell.value = val.trim();
+        cell.classList.remove('ss-cell-error');
+      }
+    });
+    // Actualizar número de fila si es nueva
+    const numEl = tbody.rows[startR + ri]?.querySelector('.ss-num');
+    if (numEl) numEl.textContent = startR + ri + 1;
+  });
+
+  _ssUpdateCount();
+  toast(`${data.length} fila${data.length !== 1 ? 's' : ''} pegadas`, 'success');
+}
+
+/* ── Utilidades ── */
+
+function _ssAddRows(n = 10) {
+  const tbody = document.getElementById('ss-body');
+  if (!tbody || !_ss) return;
+  const cur = tbody.rows.length;
+  for (let i = 0; i < n; i++) tbody.appendChild(_ssMakeRow(cur + i));
+}
+
+function _ssClearAll() {
+  if (!confirm('¿Limpiar todos los datos de la planilla?')) return;
+  _ssRebuild(20);
+}
+
+function _ssUpdateCount() {
+  const tbody = document.getElementById('ss-body');
+  const el    = document.getElementById('ss-row-count');
+  if (!tbody || !el) return;
+  const n = [...tbody.rows].filter(tr =>
+    [...tr.querySelectorAll('.ss-cell')].some(i => i.value.trim())
+  ).length;
+  el.textContent = n ? `${n} fila${n !== 1 ? 's' : ''} con datos` : '';
+}
+
+function _ssGetRows() {
+  const tbody = document.getElementById('ss-body');
+  if (!tbody || !_ss) return [];
+  const rows = [];
+  for (const tr of tbody.rows) {
+    const obj = {}; let hasData = false;
+    for (const cell of tr.querySelectorAll('.ss-cell')) {
+      const col = _ss.cfg.columns[+cell.dataset.c];
+      if (!col) continue;
+      const v = cell.value.trim();
+      if (v) hasData = true;
+      obj[col.key] = v || null;
+    }
+    if (hasData) rows.push({ _tr: tr, ...obj });
+  }
+  return rows;
+}
+
+/* ── Importar ── */
+
+async function _ssDoImport() {
+  if (!_ss) return;
+  const rawRows = _ssGetRows();
+  if (!rawRows.length) { toast('No hay datos para importar', 'warning'); return; }
+
+  // Limpiar marcas de error previas
+  document.querySelectorAll('#ss-body .ss-cell-error').forEach(el => el.classList.remove('ss-cell-error'));
+  document.querySelectorAll('.ss-status-cell').forEach(el => el.innerHTML = '');
+
+  // Validar campos obligatorios
+  let hasErrors = false;
+  rawRows.forEach(row => {
+    _ss.cfg.columns.forEach((col, ci) => {
+      if (col.required && !row[col.key]) {
+        hasErrors = true;
+        row._tr?.querySelector(`.ss-cell[data-c="${ci}"]`)?.classList.add('ss-cell-error');
+      }
+    });
+  });
+  if (hasErrors) { toast('Completá los campos obligatorios (marcados en rojo)', 'warning'); return; }
+
+  // Limpiar _tr antes de enviar a la API
+  const cleanRows = rawRows.map(({ _tr, ...rest }) => rest);
+
+  const btn = document.getElementById('ss-import-btn');
+  setLoading(btn, true);
+  document.getElementById('ss-results').innerHTML = '';
+
+  try {
+    const result = await _ss.cfg.onImport(cleanRows);
+    const ok  = result.succeeded?.length || 0;
+    const err = result.failed?.length    || 0;
+
+    const errHtml = err ? `
+      <details class="mt-2">
+        <summary class="text-warning small fw-semibold" style="cursor:pointer">
+          <i class="bi bi-exclamation-triangle me-1"></i>Ver ${err} error${err !== 1 ? 'es' : ''}
+        </summary>
+        <div class="mt-1 p-2 border rounded" style="max-height:150px;overflow-y:auto;font-size:.76rem;font-family:monospace">
+          ${(result.failed || []).map(f =>
+            `<div class="py-1 border-bottom text-danger">${JSON.stringify(f.input || f).substring(0, 90)} — ${f.error || ''}</div>`
+          ).join('')}
+        </div>
+      </details>` : '';
+
+    document.getElementById('ss-results').innerHTML = `
+      <div class="ss-result-banner ${err ? 'ss-result-err' : 'ss-result-ok'} mt-2">
+        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${ok} importados</span>
+        ${err ? `<span class="badge bg-warning text-dark"><i class="bi bi-x-circle me-1"></i>${err} errores</span>` : ''}
+        <span class="text-muted small">${ok + err} filas procesadas</span>
+      </div>${errHtml}`;
+
+    if (ok)  toast(`${ok} registros importados correctamente`, 'success');
+    if (err) toast(`${err} registros con error — revisá los detalles`, 'warning');
+  } catch(ex) {
+    document.getElementById('ss-results').innerHTML =
+      `<div class="alert alert-danger mt-2 py-2 small"><i class="bi bi-x-circle-fill me-1"></i>${ex.message}</div>`;
+    toast('Error al importar: ' + ex.message, 'danger');
+  }
+
+  setLoading(btn, false);
+}
+
 /* ── Pagination ── */
 const _pg = {};
 
