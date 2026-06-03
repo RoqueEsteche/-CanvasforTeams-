@@ -252,3 +252,202 @@ async def upsert_canvas_users(users: list) -> int:
     except Exception as e:
         logger.error(f"Error upserting Canvas users: {e}")
         return 0
+
+
+async def get_canvas_users() -> list:
+    """Return all Canvas users from local DB."""
+    try:
+        def _get():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, login_id FROM canvas_users ORDER BY name")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        return await asyncio.to_thread(_get)
+    except Exception as e:
+        logger.error(f"Error getting Canvas users: {e}")
+        return []
+
+
+async def search_canvas_users(term: str, limit: int = 1000) -> list:
+    """Search Canvas users in local DB by name, email or login_id."""
+    try:
+        def _search():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            pattern = f"%{term}%"
+            cursor.execute("""
+                SELECT id, name, email, login_id FROM canvas_users
+                WHERE name LIKE ? OR email LIKE ? OR login_id LIKE ?
+                ORDER BY name LIMIT ?
+            """, (pattern, pattern, pattern, limit))
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        return await asyncio.to_thread(_search)
+    except Exception as e:
+        logger.error(f"Error searching Canvas users: {e}")
+        return []
+
+
+async def delete_canvas_user(user_id: str) -> bool:
+    """Delete a Canvas user from local DB."""
+    try:
+        def _del():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.execute("DELETE FROM canvas_users WHERE id = ?", (user_id,))
+            conn.commit()
+            conn.close()
+        await asyncio.to_thread(_del)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting Canvas user {user_id}: {e}")
+        return False
+
+
+async def get_courses() -> list:
+    """Return all courses from local DB."""
+    try:
+        def _get():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, course_code FROM canvas_courses ORDER BY name")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        return await asyncio.to_thread(_get)
+    except Exception as e:
+        logger.error(f"Error getting courses: {e}")
+        return []
+
+
+async def delete_course(course_id: str) -> bool:
+    """Delete a course from local DB."""
+    try:
+        def _del():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.execute("DELETE FROM canvas_courses WHERE id = ?", (course_id,))
+            conn.commit()
+            conn.close()
+        await asyncio.to_thread(_del)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting course {course_id}: {e}")
+        return False
+
+
+async def upsert_azure_users(users: list) -> int:
+    """Upsert Azure AD users into local DB."""
+    try:
+        def _upsert():
+            conn = sqlite3.connect(str(DB_FILE))
+            cursor = conn.cursor()
+            count = 0
+            for user in users:
+                try:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO azure_users
+                            (id, display_name, mail, user_principal_name, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        user.get('id'),
+                        user.get('displayName', ''),
+                        user.get('mail', ''),
+                        user.get('userPrincipalName', ''),
+                        datetime.utcnow()
+                    ))
+                    count += 1
+                except Exception as ue:
+                    logger.warning(f"Skipping Azure user {user.get('id')}: {ue}")
+            conn.commit()
+            conn.close()
+            return count
+        return await asyncio.to_thread(_upsert)
+    except Exception as e:
+        logger.error(f"Error upserting Azure users: {e}")
+        return 0
+
+
+async def get_azure_users() -> list:
+    """Return all Azure AD users from local DB."""
+    try:
+        def _get():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, display_name, mail, user_principal_name
+                FROM azure_users ORDER BY display_name
+            """)
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        return await asyncio.to_thread(_get)
+    except Exception as e:
+        logger.error(f"Error getting Azure users: {e}")
+        return []
+
+
+async def delete_azure_user(user_id: str) -> bool:
+    """Delete an Azure AD user from local DB."""
+    try:
+        def _del():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.execute("DELETE FROM azure_users WHERE id = ?", (user_id,))
+            conn.commit()
+            conn.close()
+        await asyncio.to_thread(_del)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting Azure user {user_id}: {e}")
+        return False
+
+
+async def upsert_enrollments(enrollments: list) -> int:
+    """Upsert enrollments into local DB."""
+    try:
+        def _upsert():
+            conn = sqlite3.connect(str(DB_FILE))
+            cursor = conn.cursor()
+            count = 0
+            for e in enrollments:
+                try:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO canvas_enrollments
+                            (id, course_id, user_id, role)
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        e.get('id'),
+                        e.get('course_id'),
+                        e.get('user_id'),
+                        e.get('type', e.get('role', '')),
+                    ))
+                    count += 1
+                except Exception as ue:
+                    logger.warning(f"Skipping enrollment {e.get('id')}: {ue}")
+            conn.commit()
+            conn.close()
+            return count
+        return await asyncio.to_thread(_upsert)
+    except Exception as e:
+        logger.error(f"Error upserting enrollments: {e}")
+        return 0
+
+
+async def delete_enrollment(enrollment_id: str) -> bool:
+    """Delete an enrollment from local DB."""
+    try:
+        def _del():
+            conn = sqlite3.connect(str(DB_FILE))
+            conn.execute("DELETE FROM canvas_enrollments WHERE id = ?", (enrollment_id,))
+            conn.commit()
+            conn.close()
+        await asyncio.to_thread(_del)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting enrollment {enrollment_id}: {e}")
+        return False
