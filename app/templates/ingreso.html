@@ -1,374 +1,1182 @@
-{% extends "base.html" %}
-{% block title %}Nuevo Ingreso{% endblock %}
-{% block breadcrumb %}Herramientas › Nuevo Ingreso{% endblock %}
-{% block nav_ni %}active{% endblock %}
-{% block content %}
-<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
-  <div>
-    <div class="page-title">Nuevo Ingreso</div>
-    <div class="page-subtitle">Genera credenciales institucionales para alumnos y docentes</div>
-  </div>
-  <div class="ms-auto d-flex gap-2 flex-wrap">
-    <button type="button" class="btn btn-primary" onclick="openExcelIngreso()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
-  </div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credenciales – USIL</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", system-ui, Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        /* ── Layout ── */
+        .page { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .page-header h1 { font-size: 1.15rem; font-weight: 700; color: #2d3748; }
+        .page-header span { font-size: .82rem; color: #718096; }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 18px;
+            font-size: .9rem;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: color .15s, border-color .15s;
+            font-family: inherit;
+        }
+        .tab-btn:hover { color: #4a5568; }
+        .tab-btn.active { color: #5a67d8; border-bottom-color: #5a67d8; }
+
+        .pane { display: none; }
+        .pane.active { display: block; }
+
+        /* ── Sub-tabs ── */
+        .sub-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+        .sub-btn {
+            background: #edf2f7;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: .85rem;
+            font-weight: 600;
+            color: #4a5568;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background .15s, color .15s;
+        }
+        .sub-btn.active { background: #5a67d8; color: #fff; }
+
+        .sub-pane { display: none; }
+        .sub-pane.active { display: block; }
+
+        /* ── Card ── */
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            padding: 28px;
+        }
+        .card + .card { margin-top: 16px; }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+
+        /* ── Form ── */
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        @media (max-width: 620px) { .row2, .row3 { grid-template-columns: 1fr; } }
+
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: block;
+            font-size: .82rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+        .field label .hint { font-size: .78rem; text-transform: none; font-weight: 400; color: #a0aec0; letter-spacing: 0; }
+
+        .field input, .field select {
+            width: 100%;
+            padding: 9px 11px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: .9rem;
+            font-family: inherit;
+            background: #fff;
+            color: #2d3748;
+            transition: border-color .15s;
+        }
+        .field input:focus, .field select:focus {
+            outline: none;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90,103,216,.1);
+        }
+        .field input:disabled {
+            background: #f7fafc;
+            color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .field input.narrow { max-width: 320px; }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: .9rem;
+            color: #4a5568;
+            cursor: pointer;
+            margin-bottom: 14px;
+        }
+        .check-row input[type=checkbox] { width: auto; flex-shrink: 0; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: .88rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background .15s, opacity .15s;
+        }
+        .btn-primary { background: #5a67d8; color: #fff; width: 100%; justify-content: center; padding: 11px 20px; font-size: .92rem; }
+        .btn-primary:hover { background: #4c51bf; }
+        .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+        .btn-add { background: #38a169; color: #fff; font-size: .82rem; padding: 6px 13px; }
+        .btn-add:hover { background: #2f855a; }
+        .btn-del { background: #e53e3e; color: #fff; font-size: .78rem; padding: 4px 9px; border-radius: 4px; }
+
+        /* ── Alert ── */
+        .alert {
+            display: none;
+            padding: 11px 14px;
+            border-radius: 6px;
+            font-size: .88rem;
+            margin-bottom: 16px;
+            border-left: 3px solid transparent;
+        }
+        .alert.show { display: flex; align-items: flex-start; gap: 8px; }
+        .alert-ok  { background: #f0fff4; color: #22543d; border-color: #48bb78; }
+        .alert-err { background: #fff5f5; color: #742a2a; border-color: #fc8181; }
+        .alert-warn { background: #fffbeb; color: #744210; border-color: #f6ad55; }
+
+        /* ── Progress ── */
+        .prog-wrap { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 10px; display: none; }
+        .prog-wrap.show { display: block; }
+        .prog-fill { height: 100%; border-radius: 2px; background: #5a67d8; transition: width .3s; }
+
+        /* ── Bulk table ── */
+        .tbl-wrap { overflow-x: auto; margin-bottom: 12px; }
+        .bulk-tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+        .bulk-tbl th { background: #f7fafc; color: #4a5568; font-weight: 600; padding: 8px 9px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+        .bulk-tbl td { padding: 5px 5px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+        .bulk-tbl input, .bulk-tbl select {
+            width: 100%;
+            padding: 5px 7px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: .83rem;
+            font-family: inherit;
+        }
+        .bulk-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .bulk-bar .count { font-size: .82rem; color: #718096; }
+
+        /* ── Result cards ── */
+        .result-wrap { margin-top: 18px; display: none; }
+        .result-wrap.show { display: block; }
+
+        .res-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .res-card + .res-card { margin-top: 10px; }
+        .res-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: .88rem;
+            font-weight: 600;
+        }
+        .res-card-body { padding: 12px 14px; font-size: .85rem; }
+        .res-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
+        .res-row:last-child { border-bottom: none; }
+        .res-key { color: #718096; min-width: 130px; flex-shrink: 0; }
+        .res-val { color: #2d3748; font-weight: 500; word-break: break-all; }
+        .res-val.mono { font-family: "Courier New", monospace; font-size: .88rem; }
+
+        /* Status pills */
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 9px;
+            border-radius: 20px;
+            font-size: .78rem;
+            font-weight: 700;
+        }
+        .pill-ok     { background: #c6f6d5; color: #22543d; }
+        .pill-err    { background: #fed7d7; color: #742a2a; }
+        .pill-exists { background: #feebc8; color: #744210; }
+        .pill-skip   { background: #e2e8f0; color: #4a5568; }
+
+        /* Verification result table */
+        .vrf-tbl { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 4px; }
+        .vrf-tbl th { background: #f7fafc; padding: 7px 10px; text-align: left; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; }
+        .vrf-tbl td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+        .vrf-tbl tr:last-child td { border-bottom: none; }
+        .vrf-detail { font-size: .78rem; color: #718096; margin-top: 2px; }
+
+        /* Cred display card */
+        .cred-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+        .cred-card .cred-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #edf2f7; }
+        .cred-card .cred-row:last-child { border-bottom: none; }
+        .cred-card .cred-k { width: 150px; font-size: .8rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; }
+        .cred-card .cred-v { font-size: .9rem; color: #2d3748; font-weight: 500; }
+        .cred-card .cred-v.mono { font-family: "Courier New", monospace; font-weight: 700; color: #5a67d8; }
+
+        /* Bulk summary */
+        .bulk-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .stat-box { flex: 1; min-width: 100px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; text-align: center; }
+        .stat-box .stat-n { font-size: 1.4rem; font-weight: 800; color: #5a67d8; }
+        .stat-box .stat-l { font-size: .75rem; color: #718096; margin-top: 2px; }
+        .stat-box.stat-err .stat-n { color: #e53e3e; }
+        .stat-box.stat-warn .stat-n { color: #d69e2e; }
+        .stat-box.stat-ok .stat-n { color: #38a169; }
+
+        /* Divider */
+        .divider { height: 1px; background: #f0f2f5; margin: 16px 0; }
+
+        /* Header user section */
+        .page-header { justify-content: space-between; }
+        .header-user { display: flex; align-items: center; gap: 12px; font-size: .88rem; }
+        .header-user .user-name { color: #2d3748; font-weight: 600; }
+        .header-user .btn-logout {
+            background: #e53e3e; color: #fff; padding: 6px 13px; border: none; border-radius: 6px;
+            font-size: .82rem; font-weight: 600; cursor: pointer; text-decoration: none;
+        }
+        .header-user .btn-logout:hover { background: #c53030; }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <div>
+        <h1>Gestión de Credenciales</h1>
+        <span>Universidad San Ignacio de Loyola</span>
+    </div>
+    <div class="header-user">
+        <span class="user-name">{{ user.name if user else 'Usuario' }}</span>
+        <a href="/auth/logout" class="btn-logout">Cerrar sesión</a>
+    </div>
 </div>
 
-<!-- Regla de credenciales -->
-<div class="alert alert-info d-flex gap-3 align-items-start mb-4 rounded-3">
-  <i class="bi bi-info-circle-fill fs-4 mt-1 flex-shrink-0"></i>
-  <div class="small">
-    <strong>Regla de credenciales</strong> — Ejemplo: <code>Karen Gonzalez</code> · CI: <code>6868066</code><br>
-    <span class="text-muted">Alumno y Docente &rarr;</span>
-    Login: <code>karen.gonzalez@{{ domain }}</code> &nbsp;·&nbsp;
-    SIS ID: <code>6868066</code> &nbsp;·&nbsp;
-    Contraseña: <code>6868066-Kg</code><br>
-    <span class="text-muted small">El login es siempre el email institucional. El CI queda como identificador SIS.</span>
-  </div>
-</div>
+<div class="page">
+    <div class="tabs">
+        <button type="button" class="tab-btn active"  onclick="switchTab(this,'crear')">Crear</button>
+        <button type="button" class="tab-btn"         onclick="switchTab(this,'reenviar')">Reenviar</button>
+        <button type="button" class="tab-btn"         onclick="switchTab(this,'verificar')">Verificar</button>
+        <button type="button" class="tab-btn"         onclick="switchTab(this,'preview')">Previsualizar</button>
+    </div>
 
-<div class="row g-3">
-  <!-- Formulario individual -->
-  <div class="col-lg-5">
-    <div class="table-card h-100">
-      <div class="card-header"><i class="bi bi-person-plus-fill text-success me-2"></i><strong>Registrar individualmente</strong></div>
-      <div class="p-4">
-        <form id="ingresoForm">
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="programTypeSelect">Programa *</label>
-            <select class="form-select" name="program_type" id="programTypeSelect" title="Tipo de programa" onchange="onProgramChange()">
-              <option value="grado">Grado (GA)</option>
-              <option value="mba">MBA – UBS Business School</option>
-              <option value="diplomado">Diplomado – UBS Business School</option>
-            </select>
-          </div>
-          <div class="mb-3 d-none" id="programNameGroup">
-            <label class="form-label fw-semibold" for="programNameInput">Nombre del diplomado *</label>
-            <input class="form-control" id="programNameInput" name="program_name"
-                   placeholder="Ej. Diplomado en Gestión Empresarial">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="roleSelect">Tipo de usuario *</label>
-            <select class="form-select" name="role" id="roleSelect" title="Tipo de usuario" onchange="livePreview()">
-              <option value="student">Alumno</option>
-              <option value="teacher">Docente</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="fullNameInput">Nombre completo *</label>
-            <input class="form-control" id="fullNameInput" name="full_name" required placeholder="Ej. Karen Gonzalez" oninput="livePreview()">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="cedulaInput">Cédula de identidad *</label>
-            <input class="form-control" id="cedulaInput" name="cedula" required placeholder="Ej. 6868066" oninput="livePreview()">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="personalEmailInput">Correo personal *</label>
-            <input type="email" class="form-control" id="personalEmailInput" name="personal_email" required placeholder="usuario@gmail.com">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="platformSelect">Crear en</label>
-            <select class="form-select" name="platform" id="platformSelect" title="Plataforma de creación">
-              <option value="both">Canvas + Teams (ambos)</option>
-              <option value="canvas">Solo Canvas LMS</option>
-              <option value="teams">Solo Microsoft Teams</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" name="send_email" id="sendEmailCheck" checked onchange="toggleCcField()">
-              <label class="form-check-label" for="sendEmailCheck">Enviar correo de bienvenida</label>
+    <!-- ═══════════════════════ CREAR ═══════════════════════ -->
+    <div id="crear" class="pane active">
+        <div class="card">
+            <div class="card-title">Crear Usuario</div>
+            <div class="sub-tabs">
+                <button type="button" class="sub-btn active" onclick="switchSub(this,'crear','crearInd')">Individual</button>
+                <button type="button" class="sub-btn"        onclick="switchSub(this,'crear','crearPlanilla')">Planilla</button>
             </div>
-          </div>
-          <div id="ccSection" class="mb-3">
-            <label class="form-label fw-semibold small" for="ccInput">
-              CC — Copia a directivos
-              <span class="text-muted fw-normal">(opcional, separar con coma)</span>
-            </label>
-            <input type="text" class="form-control form-control-sm" id="ccInput" name="cc"
-                   placeholder="director@usil.edu.py, rectorado@usil.edu.py">
-            <div class="form-text">Los correos globales configurados en .env se agregan automáticamente.</div>
-          </div>
 
-          <!-- Vista previa de credenciales -->
-          <div id="credPreview" class="cred-preview mb-3 d-none">
-            <div class="small text-muted mb-2 fw-semibold">Vista previa de credenciales:</div>
-            <div class="small mb-1"><span class="text-muted">Login (Canvas y Teams):</span> <strong id="prevLogin">—</strong></div>
-            <div class="small mb-1"><span class="text-muted">SIS ID (cédula):</span> <strong id="prevSis">—</strong></div>
-            <div class="small"><span class="text-muted">Contraseña:</span> <code id="prevPwd">—</code></div>
-          </div>
+            <!-- Individual -->
+            <div id="crearInd" class="sub-pane active">
+                <div id="crearIndAlert" class="alert"></div>
+                <form id="crearIndForm" autocomplete="off">
+                    <div class="row2">
+                        <div class="field">
+                            <label for="ci_nombre">Nombre Completo</label>
+                            <input type="text" id="ci_nombre" placeholder="Ej: Karen Gonzalez" required>
+                        </div>
+                        <div class="field">
+                            <label for="ci_cedula">Cédula</label>
+                            <input type="text" id="ci_cedula" placeholder="Ej: 6868066" required>
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="field">
+                            <label for="ci_email">Email Personal</label>
+                            <input type="email" id="ci_email" placeholder="usuario@gmail.com" required>
+                        </div>
+                        <div class="field">
+                            <label for="ci_rol">Rol</label>
+                            <select id="ci_rol" title="Rol">
+                                <option value="student">Estudiante</option>
+                                <option value="teacher">Docente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row3">
+                        <div class="field">
+                            <label for="ci_plataforma">Plataforma</label>
+                            <select id="ci_plataforma" title="Plataforma">
+                                <option value="both">Canvas + Teams</option>
+                                <option value="canvas">Solo Canvas</option>
+                                <option value="teams">Solo Teams</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="ci_tipo">Programa</label>
+                            <select id="ci_tipo" title="Tipo de programa" onchange="toggleProg('ci')">
+                                <option value="grado">Grado</option>
+                                <option value="mba">MBA</option>
+                                <option value="diplomado">Diplomado</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="ci_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
+                            <input type="text" id="ci_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="ci_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
+                        <input type="text" id="ci_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                    </div>
+                    <label class="check-row">
+                        <input type="checkbox" id="ci_enviar" checked>
+                        Enviar correo de bienvenida con credenciales
+                    </label>
+                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                </form>
+                <div id="crearIndResult" class="result-wrap"></div>
+            </div>
 
-          <button type="button" class="btn btn-success w-100" id="createBtn" onclick="createOne()">
-            <i class="bi bi-check-circle-fill me-1"></i>Generar y crear cuenta
-          </button>
-        </form>
-        <div id="createResult" class="mt-3"></div>
-      </div>
+            <!-- Masivo -->
+            <div id="crearBulk" class="sub-pane">
+                <div id="crearBulkAlert" class="alert"></div>
+                <div class="row2" style="margin-bottom:14px;">
+                    <div class="field">
+                        <label for="cm_tipo">Programa (para todos)</label>
+                        <select id="cm_tipo" title="Programa" onchange="toggleProg('cm')">
+                            <option value="grado">Grado</option>
+                            <option value="mba">MBA</option>
+                            <option value="diplomado">Diplomado</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="cm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
+                        <input type="text" id="cm_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                    </div>
+                </div>
+                <div class="bulk-bar">
+                    <span class="count" id="cm_count">0 filas</span>
+                    <button type="button" class="btn btn-add" onclick="addRow('cm_tbody','crear')">+ Fila</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="bulk-tbl">
+                        <thead><tr><th>Nombre Completo</th><th>Cédula</th><th>Email Personal</th><th>Rol</th><th>Plataforma</th><th></th></tr></thead>
+                        <tbody id="cm_tbody"></tbody>
+                    </table>
+                </div>
+                <div class="prog-wrap" id="cm_prog"><div class="prog-fill" id="cm_fill" style="width:0%"></div></div>
+                <button type="button" class="btn btn-primary" onclick="submitBulk('crear')" style="margin-top:12px;">Crear todos</button>
+                <div id="crearBulkResult" class="result-wrap"></div>
+            </div>
+
+            <!-- Planilla -->
+            <div id="crearPlanilla" class="sub-pane">
+                <div id="crearPlanillaAlert" class="alert"></div>
+                <div class="bulk-bar">
+                    <span class="count" id="cp_count">0 filas</span>
+                    <button type="button" class="btn btn-add" onclick="addPlanillaRow()">+ Fila</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="bulk-tbl">
+                        <thead>
+                            <tr>
+                                <th>Nombre Completo</th>
+                                <th>Cédula</th>
+                                <th>Email Personal</th>
+                                <th>Rol</th>
+                                <th>Plataforma</th>
+                                <th>Programa</th>
+                                <th>Nombre del Programa</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cp_tbody"></tbody>
+                    </table>
+                </div>
+                <div class="prog-wrap" id="cp_prog"><div class="prog-fill" id="cp_fill" style="width:0%"></div></div>
+                <button type="button" class="btn btn-primary" onclick="submitPlanilla()" style="margin-top:12px;">Crear desde planilla</button>
+                <div id="crearPlanillaResult" class="result-wrap"></div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- Panel de registros -->
-  <div class="col-lg-7">
-    <div class="table-card h-100">
-      <div class="card-header d-flex align-items-center gap-2">
-        <i class="bi bi-list-check text-primary me-1"></i><strong>Registros de esta sesión</strong>
-        <span class="ms-auto badge bg-secondary" id="sessionCount">0</span>
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearLog()" title="Limpiar registros" aria-label="Limpiar registros">
-          <i class="bi bi-trash"></i>
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportLog()" title="Exportar a Excel" aria-label="Exportar a Excel">
-          <i class="bi bi-download"></i> Excel
-        </button>
-      </div>
-      <div class="table-responsive table-scroll">
-        <table class="table table-hover mb-0" id="logTable">
-          <thead><tr>
-            <th>Nombre</th><th>Rol</th><th>Login Canvas</th><th>Contraseña</th>
-            <th>Canvas</th><th>Teams</th><th>Email</th>
-          </tr></thead>
-          <tbody id="logBody">
-            <tr><td colspan="7" class="text-center text-muted py-4">Sin registros aún</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- ═══════════════════════ REENVIAR ═══════════════════════ -->
+    <div id="reenviar" class="pane">
+        <div class="card">
+            <div class="card-title">Reenviar Credenciales</div>
+            <div class="sub-tabs">
+                <button type="button" class="sub-btn active" onclick="switchSub(this,'reenviar','reenviarInd')">Individual</button>
+                <button type="button" class="sub-btn"        onclick="switchSub(this,'reenviar','reenviarBulk')">Masivo</button>
+            </div>
+
+            <!-- Individual -->
+            <div id="reenviarInd" class="sub-pane active">
+                <div id="reenviarIndAlert" class="alert"></div>
+                <form id="reenviarIndForm" autocomplete="off">
+                    <div class="row2">
+                        <div class="field">
+                            <label for="ri_nombre">Nombre Completo</label>
+                            <input type="text" id="ri_nombre" placeholder="Ej: Karen Gonzalez" required>
+                        </div>
+                        <div class="field">
+                            <label for="ri_cedula">Cédula</label>
+                            <input type="text" id="ri_cedula" placeholder="Ej: 6868066" required>
+                        </div>
+                    </div>
+                    <div class="row3">
+                        <div class="field">
+                            <label for="ri_email">Email Personal</label>
+                            <input type="email" id="ri_email" placeholder="usuario@gmail.com" required>
+                        </div>
+                        <div class="field">
+                            <label for="ri_plataforma">Plataforma</label>
+                            <select id="ri_plataforma" title="Plataforma">
+                                <option value="both">Canvas + Teams</option>
+                                <option value="canvas">Solo Canvas</option>
+                                <option value="teams">Solo Teams</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="ri_tipo">Programa</label>
+                            <select id="ri_tipo" title="Programa" onchange="toggleProg('ri')">
+                                <option value="grado">Grado</option>
+                                <option value="mba">MBA</option>
+                                <option value="diplomado">Diplomado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="ri_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
+                        <input type="text" id="ri_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                    </div>
+                    <div class="field">
+                        <label for="ri_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
+                        <input type="text" id="ri_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Reenviar credenciales</button>
+                </form>
+                <div id="reenviarIndResult" class="result-wrap"></div>
+            </div>
+
+            <!-- Masivo -->
+            <div id="reenviarBulk" class="sub-pane">
+                <div id="reenviarBulkAlert" class="alert"></div>
+                <div class="row2" style="margin-bottom:14px;">
+                    <div class="field">
+                        <label for="rm_tipo">Programa (para todos)</label>
+                        <select id="rm_tipo" title="Programa" onchange="toggleProg('rm')">
+                            <option value="grado">Grado</option>
+                            <option value="mba">MBA</option>
+                            <option value="diplomado">Diplomado</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="rm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
+                        <input type="text" id="rm_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                    </div>
+                </div>
+                <div class="bulk-bar">
+                    <span class="count" id="rm_count">0 filas</span>
+                    <button type="button" class="btn btn-add" onclick="addRow('rm_tbody','reenviar')">+ Fila</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="bulk-tbl">
+                        <thead><tr><th>Nombre Completo</th><th>Cédula</th><th>Email Personal</th><th>Plataforma</th><th></th></tr></thead>
+                        <tbody id="rm_tbody"></tbody>
+                    </table>
+                </div>
+                <div class="prog-wrap" id="rm_prog"><div class="prog-fill" id="rm_fill" style="width:0%"></div></div>
+                <button type="button" class="btn btn-primary" onclick="submitBulk('reenviar')" style="margin-top:12px;">Reenviar a todos</button>
+                <div id="reenviarBulkResult" class="result-wrap"></div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <!-- ═══════════════════════ VERIFICAR ═══════════════════════ -->
+    <div id="verificar" class="pane">
+        <div class="card">
+            <div class="card-title">Verificar Cuentas</div>
+            <div class="sub-tabs">
+                <button type="button" class="sub-btn active" onclick="switchSub(this,'verificar','verificarInd')">Individual</button>
+                <button type="button" class="sub-btn"        onclick="switchSub(this,'verificar','verificarBulk')">Masivo</button>
+            </div>
+
+            <!-- Individual -->
+            <div id="verificarInd" class="sub-pane active">
+                <div id="verificarIndAlert" class="alert"></div>
+                <form id="verificarIndForm" autocomplete="off">
+                    <div class="row2">
+                        <div class="field">
+                            <label for="vi_cedula">Cédula</label>
+                            <input type="text" id="vi_cedula" placeholder="Ej: 6868066" required>
+                        </div>
+                        <div class="field">
+                            <label for="vi_nombre">Nombre Completo <span class="hint">(necesario para Teams)</span></label>
+                            <input type="text" id="vi_nombre" placeholder="Ej: Karen Gonzalez">
+                        </div>
+                    </div>
+                    <div class="field" style="max-width:260px;">
+                        <label for="vi_plataforma">Plataforma</label>
+                        <select id="vi_plataforma" title="Plataforma">
+                            <option value="both">Canvas + Teams</option>
+                            <option value="canvas">Solo Canvas</option>
+                            <option value="teams">Solo Teams</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Verificar cuenta</button>
+                </form>
+                <div id="verificarIndResult" class="result-wrap"></div>
+            </div>
+
+            <!-- Masivo -->
+            <div id="verificarBulk" class="sub-pane">
+                <div id="verificarBulkAlert" class="alert"></div>
+                <div class="field" style="max-width:260px; margin-bottom:14px;">
+                    <label for="vm_plataforma">Plataforma (para todos)</label>
+                    <select id="vm_plataforma" title="Plataforma">
+                        <option value="both">Canvas + Teams</option>
+                        <option value="canvas">Solo Canvas</option>
+                        <option value="teams">Solo Teams</option>
+                    </select>
+                </div>
+                <div class="bulk-bar">
+                    <span class="count" id="vm_count">0 filas</span>
+                    <button type="button" class="btn btn-add" onclick="addCheckRow()">+ Fila</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="bulk-tbl">
+                        <thead><tr><th>Cédula</th><th>Nombre Completo <span class="hint">(para Teams)</span></th><th></th></tr></thead>
+                        <tbody id="vm_tbody"></tbody>
+                    </table>
+                </div>
+                <div class="prog-wrap" id="vm_prog"><div class="prog-fill" id="vm_fill" style="width:0%"></div></div>
+                <button type="button" class="btn btn-primary" onclick="submitBulkCheck()" style="margin-top:12px;">Verificar todos</button>
+                <div id="verificarBulkResult" class="result-wrap"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════ PREVIEW ═══════════════════════ -->
+    <div id="preview" class="pane">
+        <div class="card">
+            <div class="card-title">Previsualizar Credenciales</div>
+            <div id="previewAlert" class="alert"></div>
+            <form id="previewForm" autocomplete="off">
+                <div class="row2">
+                    <div class="field">
+                        <label for="pv_nombre">Nombre Completo</label>
+                        <input type="text" id="pv_nombre" placeholder="Ej: Karen Gonzalez" required>
+                    </div>
+                    <div class="field">
+                        <label for="pv_cedula">Cédula</label>
+                        <input type="text" id="pv_cedula" placeholder="Ej: 6868066" required>
+                    </div>
+                </div>
+                <div class="field" style="max-width:220px;">
+                    <label for="pv_rol">Rol</label>
+                    <select id="pv_rol" title="Rol">
+                        <option value="student">Estudiante</option>
+                        <option value="teacher">Docente</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Generar credenciales</button>
+            </form>
+            <div id="previewResult" class="result-wrap"></div>
+        </div>
+    </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-const SESSION_LOG = [];
-const DOMAIN = '{{ domain }}';
-
-function normalize(s) {
-  return s.normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+/* ── Navigation ── */
+function switchTab(btn, id) {
+    document.querySelectorAll('.pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+}
+function switchSub(btn, parentId, subId) {
+    const p = document.getElementById(parentId);
+    p.querySelectorAll('.sub-pane').forEach(el => el.classList.remove('active'));
+    p.querySelectorAll('.sub-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(subId).classList.add('active');
+    btn.classList.add('active');
 }
 
-function buildCredentials(fullName, cedula, role) {
-  const parts = fullName.trim().split(/\s+/);
-  const first = parts[0];
-  const last  = parts[parts.length - 1];
-  const loginBase = normalize(first) + '.' + normalize(last);
-  const email     = loginBase + '@' + DOMAIN;
-  const password  = cedula + '-' + normalize(first[0]).toUpperCase() + normalize(last[0]).toLowerCase();
-  // Login = email institucional para todos (alumnos y docentes)
-  // SIS   = cédula (solo referencia institucional, no se usa para ingresar)
-  return { loginId: email, email, password };
+/* ── Programa toggle ── */
+function toggleProg(pfx) {
+    const t   = document.getElementById(pfx + '_tipo').value;
+    const inp = document.getElementById(pfx + '_programa');
+    inp.disabled = (t !== 'diplomado');
+    if (inp.disabled) inp.value = '';
 }
 
-function onProgramChange() {
-  const prog = document.getElementById('programTypeSelect').value;
-  const nameGroup = document.getElementById('programNameGroup');
-  const nameInput = document.getElementById('programNameInput');
-  if (prog === 'diplomado') {
-    nameGroup.classList.remove('d-none');
-    nameInput.required = true;
-  } else {
-    nameGroup.classList.add('d-none');
-    nameInput.required = false;
-    nameInput.value = '';
-  }
-  livePreview();
+/* ── Alert ── */
+function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    const icon = type === 'ok' ? '✓' : type === 'warn' ? '!' : '✕';
+    el.innerHTML = '<b>' + icon + '</b> ' + msg;
+    el.className = 'alert show alert-' + type;
+}
+function clearAlert(id) {
+    const el = document.getElementById(id);
+    el.className = 'alert';
 }
 
-function toggleCcField() {
-  const show = document.getElementById('sendEmailCheck').checked;
-  document.getElementById('ccSection').style.display = show ? '' : 'none';
+/* ── Loading ── */
+function setLoading(btn, on) {
+    if (on) { btn.disabled = true; btn._t = btn.textContent; btn.textContent = 'Procesando…'; }
+    else     { btn.disabled = false; btn.textContent = btn._t; }
 }
 
-function livePreview() {
-  const name   = document.getElementById('fullNameInput').value.trim();
-  const cedula = document.getElementById('cedulaInput').value.trim();
-  const role   = document.getElementById('roleSelect').value;
-  const prev   = document.getElementById('credPreview');
-  if (!name || !cedula) { prev.classList.add('d-none'); return; }
-  const creds = buildCredentials(name, cedula, role);
-  document.getElementById('prevLogin').textContent = creds.loginId;
-  document.getElementById('prevSis').textContent   = cedula;
-  document.getElementById('prevPwd').textContent   = creds.password;
-  prev.classList.remove('d-none');
+/* ── Row counter ── */
+const COUNT_MAP = { cm_tbody:'cm_count', rm_tbody:'rm_count', vm_tbody:'vm_count' };
+function updateCount(tbodyId) {
+    const n  = document.getElementById(tbodyId).querySelectorAll('tr').length;
+    const el = document.getElementById(COUNT_MAP[tbodyId]);
+    if (el) el.textContent = n + ' fila' + (n !== 1 ? 's' : '');
 }
 
-function _platLine(label, result) {
-  if (!result) return '';
-  if (result.status === 'ok')
-    return `<div class="small text-success"><i class="bi bi-check-circle-fill me-1"></i><strong>${label}:</strong> creado correctamente (ID: ${result.id || '—'})</div>`;
-  return `<div class="small text-danger"><i class="bi bi-x-circle-fill me-1"></i><strong>${label}:</strong> ${result.error || 'Error desconocido'}</div>`;
+/* ── Bulk row ── */
+function addRow(tbodyId, type) {
+    const tbody = document.getElementById(tbodyId);
+    const tr = document.createElement('tr');
+    if (type === 'crear') {
+        tr.innerHTML =
+            '<td><input type="text" placeholder="Nombre Completo"></td>' +
+            '<td><input type="text" placeholder="Cédula"></td>' +
+            '<td><input type="email" placeholder="Email"></td>' +
+            '<td><select title="Rol"><option value="student">Estudiante</option><option value="teacher">Docente</option></select></td>' +
+            '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
+            '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+    } else {
+        tr.innerHTML =
+            '<td><input type="text" placeholder="Nombre Completo"></td>' +
+            '<td><input type="text" placeholder="Cédula"></td>' +
+            '<td><input type="email" placeholder="Email"></td>' +
+            '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
+            '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+    }
+    tbody.appendChild(tr);
+    updateCount(tbodyId);
+}
+function addCheckRow() {
+    const tbody = document.getElementById('vm_tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+        '<td><input type="text" placeholder="Cédula"></td>' +
+        '<td><input type="text" placeholder="Nombre Completo"></td>' +
+        '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+    tbody.appendChild(tr);
+    updateCount('vm_tbody');
+}
+function delRow(btn) {
+    const tr    = btn.closest('tr');
+    const tbody = tr.parentElement;
+    tbody.removeChild(tr);
+    updateCount(tbody.id);
 }
 
-async function createOne() {
-  const btn  = document.getElementById('createBtn');
-  const form = document.getElementById('ingresoForm');
-  if (!form.checkValidity()) { form.reportValidity(); return; }
-  const fd = new FormData(form);
-  const ccRaw = (fd.get('cc') || '').trim();
-  const platform = fd.get('platform');
-  const body = {
-    full_name:      fd.get('full_name'),
-    cedula:         fd.get('cedula'),
-    personal_email: fd.get('personal_email'),
-    role:           fd.get('role'),
-    program_type:   fd.get('program_type'),
-    program_name:   fd.get('program_name') || '',
-    platform,
-    send_email:     fd.get('send_email') === 'on',
-    cc:             ccRaw ? ccRaw.split(',').map(s => s.trim()).filter(Boolean) : [],
-  };
-  setLoading(btn, true);
-  document.getElementById('createResult').innerHTML = '';
-  try {
-    const res = await api.post('/ingreso/create', body);
-    const creds = res.credentials || {};
-    addToLog(res);
+/* ── CC parse ── */
+function parseCC(v) { return v.split(',').map(s => s.trim()).filter(Boolean); }
 
-    const hasError = res.canvas?.status === 'error' || res.teams?.status === 'error';
-    const allOk    = !hasError && (
-      (platform === 'canvas' && res.canvas?.status === 'ok') ||
-      (platform === 'teams'  && res.teams?.status  === 'ok') ||
-      (platform === 'both'   && res.canvas?.status === 'ok' && res.teams?.status === 'ok')
-    );
-
-    const emailLine = res.email === 'sent'
-      ? '<div class="small text-success mt-1"><i class="bi bi-envelope-check-fill me-1"></i>Correo de bienvenida enviado</div>'
-      : (res.email?.startsWith('error:')
-          ? `<div class="small text-warning mt-1"><i class="bi bi-envelope-exclamation-fill me-1"></i>Email no enviado: ${res.email.replace('error:','').trim()}</div>`
-          : '');
-
-    document.getElementById('createResult').innerHTML = `
-      <div class="alert ${allOk ? 'alert-success' : hasError ? 'alert-warning' : 'alert-success'} py-2">
-        <strong>${allOk ? '¡Cuenta creada correctamente!' : hasError ? 'Creación con advertencias' : '¡Cuenta creada!'}</strong><br>
-        <div class="small mt-1">
-          <span class="text-muted">Login:</span> <code>${creds.login_id || '—'}</code>
-          &nbsp;&nbsp;<span class="text-muted">Contraseña:</span> <code>${creds.password || '—'}</code>
-        </div>
-        <div class="mt-2">
-          ${platform !== 'teams'  ? _platLine('Canvas', res.canvas) : ''}
-          ${platform !== 'canvas' ? _platLine('Teams',  res.teams)  : ''}
-        </div>
-        ${emailLine}
-      </div>`;
-    if (allOk) { form.reset(); document.getElementById('credPreview').classList.add('d-none'); }
-  } catch(e) {
-    document.getElementById('createResult').innerHTML = `<div class="alert alert-danger py-2"><i class="bi bi-x-circle-fill me-1"></i><strong>Error:</strong> ${e.message}</div>`;
-  } finally {
-    setLoading(btn, false);
-  }
+/* ── Result renderers ── */
+function pill(status) {
+    if (status === 'ok')     return '<span class="pill pill-ok">Creado</span>';
+    if (status === 'exists') return '<span class="pill pill-exists">Ya existe</span>';
+    if (status === 'error')  return '<span class="pill pill-err">Error</span>';
+    return '<span class="pill pill-skip">—</span>';
 }
 
-function _statusBadge(result) {
-  if (!result) return '<span class="badge bg-secondary">—</span>';
-  if (result.status === 'ok') return '<span class="badge bg-success">OK</span>';
-  const msg = (result.error || 'Error desconocido').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  return `<span class="badge bg-danger" title="${msg}" data-bs-toggle="tooltip" style="cursor:help;max-width:120px;overflow:hidden;text-overflow:ellipsis">Error</span>`;
+function renderCreateResult(wrap, data) {
+    const creds = data.credentials || {};
+    const cs    = data.canvas  || {};
+    const ts    = data.teams   || {};
+    const email = data.email   || '';
+
+    let html = '<div class="res-card">';
+    html += '<div class="res-card-head"><span>' + (data.student || '') + '</span>';
+    const canvasPill = pill(cs.status);
+    const teamsPill  = pill(ts.status);
+    const emailPill  = email === 'sent'
+        ? '<span class="pill pill-ok">Correo enviado</span>'
+        : (email.startsWith('error') ? '<span class="pill pill-err">Correo fallido</span>' : '');
+    html += '<span style="display:flex;gap:6px;">' + canvasPill + teamsPill + emailPill + '</span>';
+    html += '</div><div class="res-card-body">';
+
+    if (creds.email) {
+        html += '<div class="cred-card">';
+        html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + creds.email + '</span></div>';
+        html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (creds.password || '') + '</span></div>';
+        html += '</div>';
+    }
+    if (cs.status === 'exists' && cs.existing) {
+        html += '<p style="margin-top:8px;font-size:.82rem;color:#744210;">Canvas: ya registrado como <b>' + (cs.existing.name || '') + '</b></p>';
+    } else if (cs.status === 'error') {
+        html += '<p style="margin-top:8px;font-size:.82rem;color:#742a2a;">Canvas: ' + (cs.error || '') + '</p>';
+    }
+    if (ts.status === 'exists' && ts.existing) {
+        html += '<p style="margin-top:4px;font-size:.82rem;color:#744210;">Teams: ya registrado como <b>' + (ts.existing.name || '') + '</b></p>';
+    } else if (ts.status === 'error') {
+        html += '<p style="margin-top:4px;font-size:.82rem;color:#742a2a;">Teams: ' + (ts.error || '') + '</p>';
+    }
+    html += '</div></div>';
+
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
 }
 
-function addToLog(res) {
-  SESSION_LOG.push(res);
-  const creds = res.credentials || {};
-  const roleBadge = res.role === 'teacher'
-    ? '<span class="badge bg-warning text-dark">Docente</span>'
-    : '<span class="badge bg-primary">Alumno</span>';
-  const emailBadge = res.email === 'sent'
-    ? '<span class="badge bg-success">Enviado</span>'
-    : (res.email?.startsWith('error:')
-        ? `<span class="badge bg-warning text-dark" title="${res.email}" data-bs-toggle="tooltip" style="cursor:help">Error email</span>`
-        : '<span class="badge bg-secondary">—</span>');
+function renderResendResult(wrap, data) {
+    const creds = data.credentials || {};
+    const email = data.email || '';
 
-  const tbody = document.getElementById('logBody');
-  if (tbody.rows[0]?.cells.length === 1) tbody.innerHTML = '';
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td class="small">${res.student || '—'}</td>
-    <td>${roleBadge}</td>
-    <td class="small"><code>${creds.login_id || '—'}</code></td>
-    <td><code class="small">${creds.password || '—'}</code></td>
-    <td>${_statusBadge(res.canvas)}</td>
-    <td>${_statusBadge(res.teams)}</td>
-    <td>${emailBadge}</td>`;
-  tbody.prepend(tr);
-  document.getElementById('sessionCount').textContent = SESSION_LOG.length;
-  // Activar tooltips en la fila recién agregada
-  tr.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+    let html = '<div class="res-card">';
+    const emailPill = email === 'sent'
+        ? '<span class="pill pill-ok">Correo enviado</span>'
+        : '<span class="pill pill-err">Correo fallido</span>';
+    html += '<div class="res-card-head"><span>' + (data.student || '') + '</span>' + emailPill + '</div>';
+    html += '<div class="res-card-body"><div class="cred-card">';
+    html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + (creds.email || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (creds.password || '') + '</span></div>';
+    html += '</div>';
+    if (email.startsWith('error')) {
+        html += '<p style="margin-top:8px;font-size:.82rem;color:#742a2a;">' + email + '</p>';
+    }
+    html += '</div></div>';
+
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
 }
 
-function clearLog() {
-  SESSION_LOG.length = 0;
-  document.getElementById('logBody').innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Sin registros aún</td></tr>';
-  document.getElementById('sessionCount').textContent = '0';
+function renderBulkResult(wrap, data) {
+    const ok   = (data.succeeded || []).length;
+    const fail = (data.failed    || []).length;
+
+    let html = '<div class="bulk-summary">';
+    html += '<div class="stat-box stat-ok"><div class="stat-n">' + ok + '</div><div class="stat-l">Exitosos</div></div>';
+    html += '<div class="stat-box stat-err"><div class="stat-n">' + fail + '</div><div class="stat-l">Con error</div></div>';
+    html += '<div class="stat-box"><div class="stat-n">' + (ok + fail) + '</div><div class="stat-l">Total</div></div>';
+    html += '</div>';
+
+    if (fail > 0) {
+        html += '<div class="divider"></div>';
+        html += '<p style="font-size:.82rem;font-weight:600;color:#742a2a;margin-bottom:8px;">Errores</p>';
+        for (const f of (data.failed || [])) {
+            html += '<div style="font-size:.82rem;background:#fff5f5;border:1px solid #fed7d7;border-radius:4px;padding:6px 10px;margin-bottom:6px;">';
+            html += '<b>' + (f.student || f.full_name || '?') + '</b>: ' + (f.error || '');
+            html += '</div>';
+        }
+    }
+
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
 }
 
-function exportLog() {
-  if (!SESSION_LOG.length) { toast('No hay registros para exportar', 'warning'); return; }
-  const rows = SESSION_LOG.map(r => ({
-    nombre:        r.student || '',
-    rol:           r.role || 'student',
-    login_canvas:  r.credentials?.login_id || '',
-    email:         r.credentials?.email || '',
-    password:      r.credentials?.password || '',
-    canvas_id:     r.canvas?.id || r.canvas?.error || '',
-    teams_id:      r.teams?.id  || r.teams?.error  || '',
-    email_estado:  r.email || '',
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Ingresos');
-  XLSX.writeFile(wb, 'nuevos_ingresos.xlsx');
+function renderCheckSingle(wrap, data) {
+    const cv = data.canvas;
+    const tm = data.teams;
+
+    const cvPill = cv
+        ? (cv.exists === true  ? '<span class="pill pill-exists">Existe</span>'
+         : cv.exists === false ? '<span class="pill pill-ok">Libre</span>'
+         :                       '<span class="pill pill-err">Error</span>')
+        : '';
+    const tmPill = tm
+        ? (tm.exists === true  ? '<span class="pill pill-exists">Existe</span>'
+         : tm.exists === false ? '<span class="pill pill-ok">Libre</span>'
+         :                       '<span class="pill pill-err">Error</span>')
+        : '';
+
+    let html = '<div class="res-card"><div class="res-card-head">';
+    html += '<span>' + (data.full_name || data.cedula) + '</span>';
+    html += '<span style="display:flex;gap:6px;">';
+    if (cv) html += '<span style="font-size:.75rem;color:#718096;">Canvas</span>' + cvPill;
+    if (tm) html += '<span style="font-size:.75rem;color:#718096;">Teams</span>'  + tmPill;
+    html += '</span></div><div class="res-card-body">';
+
+    if (data.generated_email) {
+        html += '<div style="font-size:.82rem;color:#718096;margin-bottom:8px;">Email generado: <b>' + data.generated_email + '</b></div>';
+    }
+
+    if (cv && cv.exists === true) {
+        html += '<div style="margin-bottom:4px;"><b>Canvas:</b>';
+        html += ' <span style="font-size:.82rem;">Registrado como <b>' + (cv.name || '—') + '</b>';
+        if (cv.login_id) html += ' &nbsp;·&nbsp; Login: ' + cv.login_id;
+        if (cv.canvas_id) html += ' &nbsp;·&nbsp; ID: ' + cv.canvas_id;
+        html += '</span></div>';
+    }
+    if (tm && tm.exists === true) {
+        html += '<div style="margin-bottom:4px;"><b>Teams:</b>';
+        html += ' <span style="font-size:.82rem;">Registrado como <b>' + (tm.name || '—') + '</b>';
+        if (tm.upn) html += ' &nbsp;·&nbsp; ' + tm.upn;
+        if (tm.account_enabled === false) html += ' &nbsp;·&nbsp; <span style="color:#e53e3e;">Cuenta desactivada</span>';
+        html += '</span></div>';
+    }
+    if (cv && cv.error) html += '<div style="font-size:.82rem;color:#742a2a;">Canvas error: ' + cv.error + '</div>';
+    if (tm && tm.error) html += '<div style="font-size:.82rem;color:#742a2a;">Teams error: '  + tm.error  + '</div>';
+
+    html += '</div></div>';
+
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
 }
 
-function openExcelIngreso() {
-  showSpreadsheet({
-    title: 'Carga masiva — Nuevo Ingreso',
-    initRows: 15,
-    columns: [
-      { key: 'full_name',      label: 'Nombre completo',      required: true,  width: 185,
-        placeholder: 'Ej. Karen Gonzalez' },
-      { key: 'cedula',         label: 'Cédula / CI',           required: true,  width: 110,
-        placeholder: 'Ej. 6868066' },
-      { key: 'personal_email', label: 'Email personal',        required: true,  width: 195,
-        placeholder: 'usuario@gmail.com' },
-      { key: 'role',           label: 'Tipo de usuario',       required: false, width: 140,
-        options: [
-          { value: 'student', label: 'Alumno'  },
-          { value: 'teacher', label: 'Docente' },
-        ] },
-      { key: 'program_type',   label: 'Programa',              required: false, width: 170,
-        options: [
-          { value: 'grado',     label: 'Grado (GA)'  },
-          { value: 'mba',       label: 'MBA'         },
-          { value: 'diplomado', label: 'Diplomado'   },
-        ] },
-      { key: 'program_name',   label: 'Nombre del diplomado',  required: false, width: 200,
-        placeholder: 'Solo si es Diplomado' },
-      { key: 'platform',       label: 'Crear en',              required: false, width: 165,
-        options: [
-          { value: 'both',   label: 'Canvas + Teams (ambos)' },
-          { value: 'canvas', label: 'Solo Canvas LMS'        },
-          { value: 'teams',  label: 'Solo Microsoft Teams'   },
-        ] },
-      { key: 'send_email',     label: 'Email de bienvenida',   required: false, width: 145,
-        options: [
-          { value: 'true',  label: 'Sí, enviar' },
-          { value: 'false', label: 'No enviar'  },
-        ] },
-    ],
-    onImport: async (rows) => {
-      const result = await api.post('/ingreso/bulk', {
-        students: rows.map(r => ({
-          full_name:      r.full_name,
-          cedula:         r.cedula,
-          personal_email: r.personal_email,
-          role:           r.role         || 'student',
-          platform:       r.platform     || 'both',
-          program_type:   r.program_type || 'grado',
-          program_name:   r.program_name || '',
-          send_email:     r.send_email   !== 'false',
-          cc:             [],
-        })),
-      });
-      if (result.succeeded) result.succeeded.forEach(r => addToLog(r));
-      return result;
-    },
-  });
+function renderCheckBulk(wrap, results, summary) {
+    let html = '<div class="bulk-summary">';
+    html += '<div class="stat-box"><div class="stat-n">' + summary.total + '</div><div class="stat-l">Verificados</div></div>';
+    html += '<div class="stat-box stat-warn"><div class="stat-n">' + summary.found_canvas + '</div><div class="stat-l">En Canvas</div></div>';
+    html += '<div class="stat-box stat-warn"><div class="stat-n">' + summary.found_teams  + '</div><div class="stat-l">En Teams</div></div>';
+    html += '</div>';
+    html += '<div class="tbl-wrap"><table class="vrf-tbl"><thead><tr><th>Cédula</th><th>Nombre</th><th>Canvas</th><th>Teams</th></tr></thead><tbody>';
+    for (const r of results) {
+        const cv = r.canvas;
+        const tm = r.teams;
+        const cvCell = cv
+            ? (cv.exists === true
+                ? '<span class="pill pill-exists">Existe</span><div class="vrf-detail">' + (cv.name || '') + '</div>'
+                : cv.exists === false ? '<span class="pill pill-ok">Libre</span>'
+                : '<span class="pill pill-err">Error</span><div class="vrf-detail">' + (cv.error || '') + '</div>')
+            : '—';
+        const tmCell = tm
+            ? (tm.exists === true
+                ? '<span class="pill pill-exists">Existe</span><div class="vrf-detail">' + (tm.name || '') + '</div>'
+                : tm.exists === false ? '<span class="pill pill-ok">Libre</span>'
+                : '<span class="pill pill-err">Error</span><div class="vrf-detail">' + (tm.error || '') + '</div>')
+            : '—';
+        html += '<tr><td>' + (r.cedula||'') + '</td><td>' + (r.full_name||'') + '</td><td>' + cvCell + '</td><td>' + tmCell + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
+}
+
+function renderPreview(wrap, data) {
+    let html = '<div class="cred-card">';
+    html += '<div class="cred-row"><span class="cred-k">Nombre</span><span class="cred-v">' + (data.full_name || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Cédula</span><span class="cred-v mono">' + (data.cedula || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + (data.institutional_email || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Usuario (login)</span><span class="cred-v mono">' + (data.login_id || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (data.password || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Rol</span><span class="cred-v">' + (data.role === 'student' ? 'Estudiante' : 'Docente') + '</span></div>';
+    html += '</div>';
+    const rb = document.getElementById(wrap);
+    rb.innerHTML = html;
+    rb.classList.add('show');
+}
+
+/* ── Forms ── */
+document.getElementById('crearIndForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.btn-primary');
+    clearAlert('crearIndAlert');
+    setLoading(btn, true);
+    document.getElementById('crearIndResult').classList.remove('show');
+    try {
+        const res = await fetch('/ingreso/create', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                full_name:    document.getElementById('ci_nombre').value,
+                cedula:       document.getElementById('ci_cedula').value,
+                personal_email: document.getElementById('ci_email').value,
+                role:         document.getElementById('ci_rol').value,
+                platform:     document.getElementById('ci_plataforma').value,
+                program_type: document.getElementById('ci_tipo').value,
+                program_name: document.getElementById('ci_programa').value,
+                send_email:   document.getElementById('ci_enviar').checked,
+                cc:           parseCC(document.getElementById('ci_cc').value),
+            })
+        });
+        const data = await res.json();
+        renderCreateResult('crearIndResult', data);
+        const cs = data.canvas && data.canvas.status;
+        const ts = data.teams  && data.teams.status;
+        if (cs === 'exists' || ts === 'exists') {
+            const parts = [];
+            if (cs === 'exists') parts.push('Canvas');
+            if (ts === 'exists') parts.push('Teams');
+            showAlert('crearIndAlert', 'El usuario ya existe en ' + parts.join(' y '), 'warn');
+        } else if (res.ok) {
+            showAlert('crearIndAlert', 'Usuario creado correctamente', 'ok');
+            e.target.reset(); toggleProg('ci');
+        } else {
+            showAlert('crearIndAlert', data.detail || 'Error al crear usuario', 'err');
+        }
+    } catch (err) { showAlert('crearIndAlert', err.message, 'err'); }
+    finally { setLoading(btn, false); }
+});
+
+document.getElementById('reenviarIndForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.btn-primary');
+    clearAlert('reenviarIndAlert');
+    setLoading(btn, true);
+    document.getElementById('reenviarIndResult').classList.remove('show');
+    try {
+        const res = await fetch('/ingreso/resend-credentials', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                full_name:    document.getElementById('ri_nombre').value,
+                cedula:       document.getElementById('ri_cedula').value,
+                personal_email: document.getElementById('ri_email').value,
+                platform:     document.getElementById('ri_plataforma').value,
+                program_type: document.getElementById('ri_tipo').value,
+                program_name: document.getElementById('ri_programa').value,
+                cc:           parseCC(document.getElementById('ri_cc').value),
+            })
+        });
+        const data = await res.json();
+        renderResendResult('reenviarIndResult', data);
+        if (res.ok && data.email === 'sent') {
+            showAlert('reenviarIndAlert', 'Credenciales enviadas correctamente', 'ok');
+            e.target.reset(); toggleProg('ri');
+        } else if (data.email && data.email.startsWith('error')) {
+            showAlert('reenviarIndAlert', 'No se pudo enviar el correo: ' + data.email, 'err');
+        } else if (!res.ok) {
+            showAlert('reenviarIndAlert', data.detail || 'Error al reenviar', 'err');
+        }
+    } catch (err) { showAlert('reenviarIndAlert', err.message, 'err'); }
+    finally { setLoading(btn, false); }
+});
+
+async function submitBulk(mode) {
+    const isCrear   = mode === 'crear';
+    const tbodyId   = isCrear ? 'cm_tbody' : 'rm_tbody';
+    const alertId   = isCrear ? 'crearBulkAlert'   : 'reenviarBulkAlert';
+    const resultId  = isCrear ? 'crearBulkResult'   : 'reenviarBulkResult';
+    const progWrap  = isCrear ? 'cm_prog'  : 'rm_prog';
+    const progFill  = isCrear ? 'cm_fill'  : 'rm_fill';
+    const tipo      = document.getElementById(isCrear ? 'cm_tipo'    : 'rm_tipo').value;
+    const programa  = document.getElementById(isCrear ? 'cm_programa': 'rm_programa').value;
+    const rows      = document.getElementById(tbodyId).querySelectorAll('tr');
+
+    clearAlert(alertId);
+    document.getElementById(resultId).classList.remove('show');
+
+    if (!rows.length) { showAlert(alertId, 'Agrega al menos una fila', 'err'); return; }
+
+    const students = [];
+    for (const tr of rows) {
+        const ins  = tr.querySelectorAll('input');
+        const sels = tr.querySelectorAll('select');
+        if (isCrear) {
+            students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
+                role: sels[0].value, platform: sels[1].value, program_type: tipo, program_name: programa, send_email: true, cc: [] });
+        } else {
+            students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
+                platform: sels[0].value, program_type: tipo, program_name: programa, cc: [] });
+        }
+    }
+
+    const endpoint = isCrear ? '/ingreso/bulk' : '/ingreso/bulk-resend';
+    document.getElementById(progWrap).classList.add('show');
+    document.getElementById(progFill).style.width = '25%';
+
+    try {
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ students }) });
+        document.getElementById(progFill).style.width = '100%';
+        const data = await res.json();
+        renderBulkResult(resultId, data);
+        const ok   = (data.succeeded || []).length;
+        const fail = (data.failed    || []).length;
+        showAlert(alertId, ok + ' procesados, ' + fail + ' con error', fail > 0 ? 'warn' : 'ok');
+    } catch (err) { showAlert(alertId, err.message, 'err'); }
+    finally { setTimeout(() => document.getElementById(progWrap).classList.remove('show'), 1200); }
+}
+
+document.getElementById('verificarIndForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.btn-primary');
+    clearAlert('verificarIndAlert');
+    setLoading(btn, true);
+    document.getElementById('verificarIndResult').classList.remove('show');
+    try {
+        const res = await fetch('/ingreso/check-account', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cedula:    document.getElementById('vi_cedula').value,
+                full_name: document.getElementById('vi_nombre').value,
+                platform:  document.getElementById('vi_plataforma').value,
+            })
+        });
+        const data = await res.json();
+        renderCheckSingle('verificarIndResult', data);
+        const cEx = data.canvas && data.canvas.exists === true;
+        const tEx = data.teams  && data.teams.exists  === true;
+        if (cEx || tEx) {
+            const parts = [cEx ? 'Canvas' : null, tEx ? 'Teams' : null].filter(Boolean);
+            showAlert('verificarIndAlert', 'Usuario encontrado en ' + parts.join(' y '), 'warn');
+        } else {
+            showAlert('verificarIndAlert', 'Usuario no encontrado — puede ser creado', 'ok');
+        }
+    } catch (err) { showAlert('verificarIndAlert', err.message, 'err'); }
+    finally { setLoading(btn, false); }
+});
+
+async function submitBulkCheck() {
+    const rows = document.getElementById('vm_tbody').querySelectorAll('tr');
+    clearAlert('verificarBulkAlert');
+    document.getElementById('verificarBulkResult').classList.remove('show');
+    if (!rows.length) { showAlert('verificarBulkAlert', 'Agrega al menos una fila', 'err'); return; }
+
+    const platform = document.getElementById('vm_plataforma').value;
+    const students = [];
+    for (const tr of rows) {
+        const ins = tr.querySelectorAll('input');
+        students.push({ cedula: ins[0].value, full_name: ins[1].value, platform });
+    }
+
+    document.getElementById('vm_prog').classList.add('show');
+    document.getElementById('vm_fill').style.width = '25%';
+
+    try {
+        const res = await fetch('/ingreso/bulk-check', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ students })
+        });
+        document.getElementById('vm_fill').style.width = '100%';
+        const data = await res.json();
+        renderCheckBulk('verificarBulkResult', data.results || [], {
+            total: data.total || 0, found_canvas: data.found_canvas || 0, found_teams: data.found_teams || 0
+        });
+        const fc = data.found_canvas || 0, ft = data.found_teams || 0;
+        showAlert('verificarBulkAlert',
+            data.total + ' verificados — ' + fc + ' en Canvas, ' + ft + ' en Teams',
+            (fc > 0 || ft > 0) ? 'warn' : 'ok');
+    } catch (err) { showAlert('verificarBulkAlert', err.message, 'err'); }
+    finally { setTimeout(() => document.getElementById('vm_prog').classList.remove('show'), 1200); }
+}
+
+document.getElementById('previewForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.btn-primary');
+    clearAlert('previewAlert');
+    setLoading(btn, true);
+    document.getElementById('previewResult').classList.remove('show');
+    try {
+        const res = await fetch('/ingreso/preview', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                full_name:      document.getElementById('pv_nombre').value,
+                cedula:         document.getElementById('pv_cedula').value,
+                personal_email: 'preview@usil.edu.py',
+                role:           document.getElementById('pv_rol').value,
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            renderPreview('previewResult', data);
+            showAlert('previewAlert', 'Credenciales generadas', 'ok');
+        } else {
+            showAlert('previewAlert', data.detail || 'Error', 'err');
+        }
+    } catch (err) { showAlert('previewAlert', err.message, 'err'); }
+    finally { setLoading(btn, false); }
+});
+
+/* ── Planilla handlers ── */
+function addPlanillaRow() {
+    const tbody = document.getElementById('cp_tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+        '<td><input type="text" placeholder="Karen Gonzalez"></td>' +
+        '<td><input type="text" placeholder="6868066"></td>' +
+        '<td><input type="email" placeholder="usuario@gmail.com"></td>' +
+        '<td><select title="Rol"><option value="student">Estudiante</option><option value="teacher">Docente</option></select></td>' +
+        '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
+        '<td><select title="Programa"><option value="grado">Grado</option><option value="mba">MBA</option><option value="diplomado">Diplomado</option></select></td>' +
+        '<td><input type="text" placeholder="Ej: Diplomado en SQL..."></td>' +
+        '<td><button type="button" class="btn btn-del" onclick="delPlanillaRow(this)">✕</button></td>';
+    tbody.appendChild(tr);
+    updateCount('cp_tbody', 'cp_count');
+}
+
+function delPlanillaRow(btn) {
+    const tr = btn.closest('tr');
+    tr.parentElement.removeChild(tr);
+    updateCount('cp_tbody', 'cp_count');
+}
+
+async function submitPlanilla() {
+    const rows = document.getElementById('cp_tbody').querySelectorAll('tr');
+    clearAlert('crearPlanillaAlert');
+    document.getElementById('crearPlanillaResult').classList.remove('show');
+
+    if (!rows.length) { showAlert('crearPlanillaAlert', 'Agrega al menos una fila', 'err'); return; }
+
+    const students = [];
+    for (const tr of rows) {
+        const ins  = tr.querySelectorAll('input');
+        const sels = tr.querySelectorAll('select');
+        students.push({
+            full_name: ins[0].value,
+            cedula: ins[1].value,
+            personal_email: ins[2].value,
+            role: sels[0].value,
+            platform: sels[1].value,
+            program_type: sels[2].value,
+            program_name: ins[3].value,
+            send_email: true,
+            cc: [],
+        });
+    }
+
+    document.getElementById('cp_prog').classList.add('show');
+    document.getElementById('cp_fill').style.width = '25%';
+
+    try {
+        const res = await fetch('/ingreso/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ students }),
+        });
+        document.getElementById('cp_fill').style.width = '100%';
+        const data = await res.json();
+        renderBulkResult('crearPlanillaResult', data);
+        const ok = (data.succeeded || []).length, fail = (data.failed || []).length;
+        showAlert('crearPlanillaAlert', ok + ' creados, ' + fail + ' con error', fail > 0 ? 'warn' : 'ok');
+    } catch (err) {
+        showAlert('crearPlanillaAlert', err.message, 'err');
+    } finally {
+        setTimeout(() => document.getElementById('cp_prog').classList.remove('show'), 1200);
+    }
 }
 </script>
-{% endblock %}
+</body>
+</html>

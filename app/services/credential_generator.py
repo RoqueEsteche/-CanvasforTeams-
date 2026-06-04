@@ -17,12 +17,18 @@ def generate_credentials(full_name: str, cedula: str, domain: str) -> dict:
       login_id: karen.gonzalez
     """
     parts = full_name.strip().split()
-    first = parts[0]
-    last  = parts[-1] if len(parts) > 1 else parts[0]
+    first = parts[0] if parts else "user"
+    last  = parts[-1] if len(parts) > 1 else parts[0] if parts else "user"
 
-    login_id   = f"{_normalize(first)}.{_normalize(last)}"
+    first_norm = _normalize(first) or "user"
+    last_norm  = _normalize(last) or "user"
+
+    login_id   = f"{first_norm}.{last_norm}"
     email      = f"{login_id}@{domain}"
-    initials   = f"{_normalize(first[0])[0].upper()}{_normalize(last[0])[0].lower()}"
+
+    first_init = _normalize(first[0])[0].upper() if first and _normalize(first[0]) else "U"
+    last_init  = _normalize(last[0])[0].lower() if last and _normalize(last[0]) else "S"
+    initials   = f"{first_init}{last_init}"
     password   = f"{cedula}-{initials}"
 
     return {

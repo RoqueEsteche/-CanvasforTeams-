@@ -71,6 +71,9 @@ async def teams_teams(request: Request):
 
 @router.get("/ui/ingreso", response_class=HTMLResponse)
 async def ingreso_page(request: Request):
+    user = _current_user(request)
+    if not user:
+        return RedirectResponse(url="/ui/login", status_code=302)
     from app.core.config import settings
     return _r(request, "ingreso.html", domain=settings.institutional_domain)
 

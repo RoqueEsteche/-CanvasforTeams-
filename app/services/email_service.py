@@ -7,7 +7,9 @@ Three HTML templates matching the institutional Word templates:
 
 Requires 'Mail.Send' application permission on the Azure app registration.
 """
+import base64
 import httpx
+from pathlib import Path
 
 from app.core.config import settings
 from app.services import teams_client as graph
@@ -215,11 +217,13 @@ async def send_welcome_email(
     program_type: str = "grado",
     program_name: str = "",
     extra_cc: list[str] | None = None,
+    attachments: list[str] | None = None,
 ):
     """Send welcome email via Microsoft Graph API using the template for program_type.
 
     program_type: "grado" | "mba" | "diplomado"
     program_name: specific program name shown in diplomado template.
+    attachments: list of file paths to attach (only for diplomado).
     """
     sender = settings.smtp_from
     if not sender:
@@ -228,12 +232,16 @@ async def send_welcome_email(
     # The login shown in the email is login_id (cedula for students, email for teachers)
     usuario = login_id
 
-    subjects = {
-        "grado":     "¡Bienvenido/a! – Credenciales de Acceso a Plataformas Virtuales",
-        "mba":       "Accesos al Programa MBA | UBS Business School",
-        "diplomado": f"Credenciales de acceso – {program_name or 'Diplomado'} – TI UBS",
+    program_labels = {
+        "grado":     program_name or "Grado",
+        "mba":       program_name or "MBA",
+        "diplomado": program_name or "Diplomado",
     }
-    subject = subjects.get(program_type, subjects["grado"])
+    label = program_labels.get(program_type, program_name or program_type)
+    if program_type == "grado":
+        subject = f"Credenciales de acceso – {label}"
+    else:
+        subject = f"Credenciales de acceso – {label} – TI UBS"
 
     if program_type == "mba":
         html = _html_mba(full_name, usuario, password)
@@ -252,17 +260,37 @@ async def send_welcome_email(
         "subject": subject,
         "body": {"contentType": "HTML", "content": html},
         "toRecipients": [{"emailAddress": {"address": to_email}}],
-        "from": {"emailAddress": {"address": sender}},
+        "from": {"emailAddress": {"address": sender, "name": settings.smtp_from_name}},
     }
     if cc_addresses:
         message["ccRecipients"] = [
             {"emailAddress": {"address": addr}} for addr in cc_addresses
         ]
 
+    # Add attachments for diplomado if provided
+    if attachments and program_type == "diplomado":
+        message["attachments"] = []
+        for file_path in attachments:
+            try:
+                file_path_obj = Path(file_path)
+                if file_path_obj.exists():
+                    with open(file_path_obj, "rb") as f:
+                        file_bytes = f.read()
+                        b64_content = base64.b64encode(file_bytes).decode("utf-8")
+                        message["attachments"].append({
+                            "@odata.type": "#microsoft.graph.fileAttachment",
+                            "name": file_path_obj.name,
+                            "contentBytes": b64_content,
+                        })
+            except Exception as e:
+                # Log but don't fail the entire email send
+                import logging
+                logging.warning(f"Failed to attach {file_path}: {e}")
+
     payload = {"message": message, "saveToSentItems": False}
 
     token = graph._get_access_token()
-    async with httpx.AsyncClient(timeout=20) as c:
+    async with httpx.AsyncClient(timeout=30) as c:
         r = await c.post(
             f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail",
             headers={

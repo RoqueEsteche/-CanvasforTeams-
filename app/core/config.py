@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = "no-reply@usil.edu.py"
+    smtp_from_name: str = "Roque Esteche"
     # CC separados por coma, ej: "director@usil.edu.py,rectorado@usil.edu.py"
     email_cc: str = ""
 
