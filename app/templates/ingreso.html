@@ -3,673 +3,963 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Credenciales – USIL</title>
+    <title>Gestión de Credenciales — USIL</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: "Segoe UI", system-ui, Arial, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-            color: #1a202c;
+        :root {
+            --blue:        #0078d4;
+            --blue-dark:   #005a9e;
+            --blue-light:  #e8f4fd;
+            --green:       #107c10;
+            --green-light: #dff6dd;
+            --red:         #a4262c;
+            --red-light:   #fde7e9;
+            --orange:      #ca5010;
+            --orange-light:#fff4ce;
+            --bg:          #faf9f8;
+            --surface:     #ffffff;
+            --border:      #edebe9;
+            --border-mid:  #d2d0ce;
+            --text:        #201f1e;
+            --text-sub:    #605e5c;
+            --text-muted:  #a19f9d;
+            --radius:      4px;
+            --shadow:      0 2px 8px rgba(0,0,0,.08);
+            --shadow-md:   0 4px 16px rgba(0,0,0,.12);
         }
 
-        /* ── Layout ── */
-        .page { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
 
-        .page-header {
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 16px 20px;
-            margin-bottom: 28px;
+        /* ── Top bar ── */
+        .topbar {
+            background: var(--blue);
+            height: 48px;
             display: flex;
             align-items: center;
-            gap: 14px;
+            padding: 0 20px;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
         }
-        .page-header h1 { font-size: 1.15rem; font-weight: 700; color: #2d3748; }
-        .page-header span { font-size: .82rem; color: #718096; }
-
-        /* ── Tabs ── */
-        .tabs {
+        .topbar-brand {
             display: flex;
-            gap: 4px;
-            border-bottom: 2px solid #e2e8f0;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 15px;
+            text-decoration: none;
+        }
+        .topbar-brand-icon {
+            width: 28px; height: 28px;
+            background: rgba(255,255,255,.18);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+        .topbar-sep { flex: 1; }
+        .topbar-user {
+            display: flex; align-items: center; gap: 10px;
+            color: rgba(255,255,255,.9); font-size: 13px;
+        }
+        .topbar-user-avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: rgba(255,255,255,.25);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px; color: #fff;
+        }
+        .topbar-logout {
+            color: rgba(255,255,255,.8);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(255,255,255,.3);
+            transition: background .15s;
+        }
+        .topbar-logout:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+        /* ── Page shell ── */
+        .shell {
+            display: flex;
+            min-height: calc(100vh - 48px);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 220px;
+            flex-shrink: 0;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 16px 0;
+        }
+        .sidebar-section {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--text-muted);
+            padding: 12px 16px 6px;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 16px;
+            color: var(--text-sub);
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 13.5px;
+            font-family: inherit;
+            border-left: 3px solid transparent;
+            transition: background .12s, color .12s;
+        }
+        .sidebar-item:hover { background: var(--blue-light); color: var(--blue); }
+        .sidebar-item.active {
+            background: var(--blue-light);
+            color: var(--blue);
+            border-left-color: var(--blue);
+            font-weight: 600;
+        }
+        .sidebar-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+        .sidebar-badge {
+            margin-left: auto;
+            background: var(--blue);
+            color: #fff;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        /* ── Main content ── */
+        .main {
+            flex: 1;
+            min-width: 0;
+            padding: 28px 32px;
+        }
+
+        /* ── Page header ── */
+        .page-head {
             margin-bottom: 24px;
         }
-        .tab-btn {
+        .page-head h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .page-head .breadcrumb {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .page-head .breadcrumb a { color: var(--blue); text-decoration: none; }
+        .page-head .breadcrumb a:hover { text-decoration: underline; }
+
+        /* ── Section card ── */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-body { padding: 20px; }
+        .section-body + .section-body { padding-top: 0; }
+
+        /* ── Sub-nav (pills) ── */
+        .subnav {
+            display: flex;
+            gap: 2px;
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            background: var(--bg);
+        }
+        .subnav-btn {
             background: none;
             border: none;
-            padding: 10px 18px;
-            font-size: .9rem;
+            padding: 10px 14px;
+            font-size: 13px;
             font-weight: 600;
-            color: #718096;
+            color: var(--text-sub);
             cursor: pointer;
+            font-family: inherit;
             border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: color .15s, border-color .15s;
-            font-family: inherit;
+            margin-bottom: -1px;
+            transition: color .12s, border-color .12s;
         }
-        .tab-btn:hover { color: #4a5568; }
-        .tab-btn.active { color: #5a67d8; border-bottom-color: #5a67d8; }
+        .subnav-btn:hover { color: var(--blue); }
+        .subnav-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-        .pane { display: none; }
-        .pane.active { display: block; }
-
-        /* ── Sub-tabs ── */
-        .sub-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
-        .sub-btn {
-            background: #edf2f7;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: .85rem;
-            font-weight: 600;
-            color: #4a5568;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background .15s, color .15s;
-        }
-        .sub-btn.active { background: #5a67d8; color: #fff; }
-
-        .sub-pane { display: none; }
-        .sub-pane.active { display: block; }
-
-        /* ── Card ── */
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            padding: 28px;
-        }
-        .card + .card { margin-top: 16px; }
-        .card-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #f0f2f5;
-        }
+        .subpanel { display: none; padding: 20px; }
+        .subpanel.active { display: block; }
 
         /* ── Form ── */
-        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-        @media (max-width: 620px) { .row2, .row3 { grid-template-columns: 1fr; } }
-
-        .field { margin-bottom: 14px; }
-        .field label {
-            display: block;
-            font-size: .82rem;
-            font-weight: 600;
-            color: #4a5568;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: .03em;
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 680px) {
+            .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
         }
-        .field label .hint { font-size: .78rem; text-transform: none; font-weight: 400; color: #a0aec0; letter-spacing: 0; }
+
+        .field { margin-bottom: 16px; }
+        .field:last-of-type { margin-bottom: 0; }
+
+        .field-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 5px;
+        }
+        .field-label .req { color: var(--red); margin-left: 2px; }
+        .field-label .hint {
+            font-weight: 400;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-left: 4px;
+        }
 
         .field input, .field select {
             width: 100%;
-            padding: 9px 11px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: .9rem;
+            height: 32px;
+            padding: 0 8px;
+            border: 1px solid var(--border-mid);
+            border-radius: var(--radius);
+            font-size: 13.5px;
             font-family: inherit;
-            background: #fff;
-            color: #2d3748;
-            transition: border-color .15s;
+            color: var(--text);
+            background: var(--surface);
+            transition: border-color .15s, box-shadow .15s;
         }
         .field input:focus, .field select:focus {
             outline: none;
-            border-color: #5a67d8;
-            box-shadow: 0 0 0 3px rgba(90,103,216,.1);
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(0,120,212,.15);
         }
         .field input:disabled {
-            background: #f7fafc;
-            color: #a0aec0;
+            background: var(--bg);
+            color: var(--text-muted);
             cursor: not-allowed;
         }
-        .field input.narrow { max-width: 320px; }
+        .field input.narrow { max-width: 280px; }
 
-        .check-row {
+        .check-field {
             display: flex;
             align-items: center;
-            gap: 9px;
-            font-size: .9rem;
-            color: #4a5568;
+            gap: 8px;
+            font-size: 13.5px;
+            color: var(--text-sub);
             cursor: pointer;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
-        .check-row input[type=checkbox] { width: auto; flex-shrink: 0; }
+        .check-field input[type=checkbox] { width: 14px; height: 14px; flex-shrink: 0; }
 
         /* ── Buttons ── */
         .btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
-            padding: 9px 20px;
+            padding: 6px 16px;
+            height: 32px;
             border: none;
-            border-radius: 6px;
-            font-size: .88rem;
+            border-radius: var(--radius);
+            font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
             font-family: inherit;
-            transition: background .15s, opacity .15s;
+            transition: background .12s, box-shadow .12s;
+            text-decoration: none;
         }
-        .btn-primary { background: #5a67d8; color: #fff; width: 100%; justify-content: center; padding: 11px 20px; font-size: .92rem; }
-        .btn-primary:hover { background: #4c51bf; }
+        .btn-primary {
+            background: var(--blue);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--blue-dark); }
         .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
-        .btn-add { background: #38a169; color: #fff; font-size: .82rem; padding: 6px 13px; }
-        .btn-add:hover { background: #2f855a; }
-        .btn-del { background: #e53e3e; color: #fff; font-size: .78rem; padding: 4px 9px; border-radius: 4px; }
 
-        /* ── Alert ── */
-        .alert {
-            display: none;
-            padding: 11px 14px;
-            border-radius: 6px;
-            font-size: .88rem;
-            margin-bottom: 16px;
-            border-left: 3px solid transparent;
+        .btn-default {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border-mid);
         }
-        .alert.show { display: flex; align-items: flex-start; gap: 8px; }
-        .alert-ok  { background: #f0fff4; color: #22543d; border-color: #48bb78; }
-        .alert-err { background: #fff5f5; color: #742a2a; border-color: #fc8181; }
-        .alert-warn { background: #fffbeb; color: #744210; border-color: #f6ad55; }
+        .btn-default:hover { background: var(--bg); }
 
-        /* ── Progress ── */
-        .prog-wrap { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 10px; display: none; }
-        .prog-wrap.show { display: block; }
-        .prog-fill { height: 100%; border-radius: 2px; background: #5a67d8; transition: width .3s; }
+        .btn-sm { height: 26px; font-size: 12px; padding: 0 10px; }
+        .btn-danger { background: var(--red); color: #fff; }
+        .btn-danger:hover { background: #8e1a1f; }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+        }
+
+        /* ── Toast notifications ── */
+        #toast-area {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 12px 16px;
+            min-width: 300px;
+            max-width: 420px;
+            pointer-events: auto;
+            animation: slideIn .2s ease;
+            border-left: 4px solid var(--border-mid);
+        }
+        .toast.ok    { border-left-color: var(--green); }
+        .toast.err   { border-left-color: var(--red); }
+        .toast.warn  { border-left-color: var(--orange); }
+        .toast-icon  { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+        .toast-body  { flex: 1; font-size: 13px; }
+        .toast-title { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+        .toast-msg   { color: var(--text-sub); }
+        .toast-close {
+            background: none; border: none; color: var(--text-muted);
+            cursor: pointer; font-size: 14px; flex-shrink: 0;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(20px); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+
+        /* ── Progress bar ── */
+        .prog-track { height: 3px; background: var(--border); border-radius: 2px; margin: 8px 0; display: none; }
+        .prog-track.show { display: block; }
+        .prog-bar { height: 100%; background: var(--blue); border-radius: 2px; transition: width .3s; }
 
         /* ── Bulk table ── */
-        .tbl-wrap { overflow-x: auto; margin-bottom: 12px; }
-        .bulk-tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
-        .bulk-tbl th { background: #f7fafc; color: #4a5568; font-weight: 600; padding: 8px 9px; text-align: left; border-bottom: 2px solid #e2e8f0; }
-        .bulk-tbl td { padding: 5px 5px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
-        .bulk-tbl input, .bulk-tbl select {
-            width: 100%;
-            padding: 5px 7px;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            font-size: .83rem;
-            font-family: inherit;
+        .tbl-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .tbl-toolbar .count { font-size: 12px; color: var(--text-muted); }
+
+        .data-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-tbl thead th {
+            background: var(--bg);
+            color: var(--text-sub);
+            font-weight: 600;
+            font-size: 12px;
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
         }
-        .bulk-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-        .bulk-bar .count { font-size: .82rem; color: #718096; }
+        .data-tbl tbody tr:hover td { background: var(--blue-light); }
+        .data-tbl td {
+            padding: 4px 4px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .data-tbl input, .data-tbl select {
+            width: 100%; height: 28px; padding: 0 7px;
+            border: 1px solid var(--border-mid);
+            border-radius: var(--radius);
+            font-size: 12.5px;
+            font-family: inherit;
+            background: var(--surface);
+        }
+        .data-tbl input:focus, .data-tbl select:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        .tbl-wrap { overflow-x: auto; margin-bottom: 12px; }
 
-        /* ── Result cards ── */
-        .result-wrap { margin-top: 18px; display: none; }
-        .result-wrap.show { display: block; }
+        /* ── Result section ── */
+        .result-area { margin-top: 20px; display: none; }
+        .result-area.show { display: block; }
 
-        .res-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+        .result-header {
+            font-size: 13px; font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Stat boxes */
+        .stats-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+        .stat-box {
+            flex: 1; min-width: 90px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            text-align: center;
+        }
+        .stat-n { font-size: 24px; font-weight: 700; color: var(--blue); line-height: 1; }
+        .stat-l { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+        .stat-ok .stat-n   { color: var(--green); }
+        .stat-err .stat-n  { color: var(--red); }
+        .stat-warn .stat-n { color: var(--orange); }
+
+        /* Status badges */
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 2px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-ok     { background: var(--green-light);  color: var(--green); }
+        .badge-err    { background: var(--red-light);    color: var(--red); }
+        .badge-exists { background: var(--orange-light); color: var(--orange); }
+        .badge-free   { background: var(--blue-light);   color: var(--blue); }
+        .badge-skip   { background: var(--bg);           color: var(--text-muted); border: 1px solid var(--border); }
+
+        /* Credential card */
+        .cred-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             overflow: hidden;
         }
-        .res-card + .res-card { margin-top: 10px; }
-        .res-card-head {
+        .cred-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            background: #f7fafc;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: .88rem;
-            font-weight: 600;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
         }
-        .res-card-body { padding: 12px 14px; font-size: .85rem; }
-        .res-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
-        .res-row:last-child { border-bottom: none; }
-        .res-key { color: #718096; min-width: 130px; flex-shrink: 0; }
-        .res-val { color: #2d3748; font-weight: 500; word-break: break-all; }
-        .res-val.mono { font-family: "Courier New", monospace; font-size: .88rem; }
+        .cred-row:last-child { border-bottom: none; }
+        .cred-k { width: 160px; flex-shrink: 0; color: var(--text-muted); font-size: 12px; }
+        .cred-v { font-weight: 600; color: var(--text); }
+        .cred-v.mono { font-family: "Cascadia Code", "Courier New", monospace; color: var(--blue-dark); }
 
-        /* Status pills */
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 9px;
-            border-radius: 20px;
-            font-size: .78rem;
-            font-weight: 700;
+        /* Result item card */
+        .res-item {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            overflow: hidden;
         }
-        .pill-ok     { background: #c6f6d5; color: #22543d; }
-        .pill-err    { background: #fed7d7; color: #742a2a; }
-        .pill-exists { background: #feebc8; color: #744210; }
-        .pill-skip   { background: #e2e8f0; color: #4a5568; }
+        .res-item-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            font-size: 13px; font-weight: 600;
+        }
+        .res-item-body { padding: 12px 14px; font-size: 13px; }
+        .res-badges { display: flex; gap: 6px; align-items: center; }
 
-        /* Verification result table */
-        .vrf-tbl { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 4px; }
-        .vrf-tbl th { background: #f7fafc; padding: 7px 10px; text-align: left; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; }
-        .vrf-tbl td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+        /* Verify table */
+        .vrf-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .vrf-tbl th {
+            background: var(--bg);
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .04em;
+            color: var(--text-muted);
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+        }
+        .vrf-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
         .vrf-tbl tr:last-child td { border-bottom: none; }
-        .vrf-detail { font-size: .78rem; color: #718096; margin-top: 2px; }
+        .vrf-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-        /* Cred display card */
-        .cred-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-        .cred-card .cred-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #edf2f7; }
-        .cred-card .cred-row:last-child { border-bottom: none; }
-        .cred-card .cred-k { width: 150px; font-size: .8rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; }
-        .cred-card .cred-v { font-size: .9rem; color: #2d3748; font-weight: 500; }
-        .cred-card .cred-v.mono { font-family: "Courier New", monospace; font-weight: 700; color: #5a67d8; }
-
-        /* Bulk summary */
-        .bulk-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-        .stat-box { flex: 1; min-width: 100px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; text-align: center; }
-        .stat-box .stat-n { font-size: 1.4rem; font-weight: 800; color: #5a67d8; }
-        .stat-box .stat-l { font-size: .75rem; color: #718096; margin-top: 2px; }
-        .stat-box.stat-err .stat-n { color: #e53e3e; }
-        .stat-box.stat-warn .stat-n { color: #d69e2e; }
-        .stat-box.stat-ok .stat-n { color: #38a169; }
+        /* Error detail */
+        .error-item {
+            background: var(--red-light);
+            border: 1px solid #f4c3c5;
+            border-radius: var(--radius);
+            padding: 8px 12px;
+            font-size: 12.5px;
+            margin-bottom: 6px;
+        }
+        .error-item b { color: var(--red); }
 
         /* Divider */
-        .divider { height: 1px; background: #f0f2f5; margin: 16px 0; }
+        .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
-        /* Header user section */
-        .page-header { justify-content: space-between; }
-        .header-user { display: flex; align-items: center; gap: 12px; font-size: .88rem; }
-        .header-user .user-name { color: #2d3748; font-weight: 600; }
-        .header-user .btn-logout {
-            background: #e53e3e; color: #fff; padding: 6px 13px; border: none; border-radius: 6px;
-            font-size: .82rem; font-weight: 600; cursor: pointer; text-decoration: none;
+        /* Utility */
+        .span2 { grid-column: span 2; }
+        .mb-12 { margin-bottom: 12px; }
+        .mt-10 { margin-top: 10px; }
+        .mt-8  { margin-top: 8px; margin-bottom: 4px; }
+        .txt-muted { font-size: 12px; color: var(--text-muted); margin-right: auto; }
+        .txt-warn  { color: var(--orange); }
+        .txt-err   { color: var(--red); }
+        .txt-sub   { color: var(--text-sub); }
+        .txt-sm    { font-size: 12px; }
+        .txt-xs    { font-size: 11px; color: var(--text-muted); }
+        .mono      { font-family: "Cascadia Code","Courier New",monospace; }
+        .hstack    { display: flex; align-items: center; gap: 6px; }
+        .badge-ml  { margin-left: 8px; }
+        .notices   { margin-top: 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; }
+        .res-meta  { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+        .plat-label { font-size: 11px; color: var(--text-muted); }
+        .d-none { display: none !important; }
+        .prog-bar-init { width: 0%; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
         }
-        .header-user .btn-logout:hover { background: #c53030; }
+        .empty-state-icon { font-size: 36px; margin-bottom: 10px; }
+        .empty-state-text { font-size: 13px; }
     </style>
 </head>
 <body>
 
-<div class="page-header">
-    <div>
-        <h1>Gestión de Credenciales</h1>
-        <span>Universidad San Ignacio de Loyola</span>
-    </div>
-    <div class="header-user">
-        <span class="user-name">{{ user.name if user else 'Usuario' }}</span>
-        <a href="/auth/logout" class="btn-logout">Cerrar sesión</a>
+<!-- Top bar -->
+<div class="topbar">
+    <a href="/" class="topbar-brand">
+        <div class="topbar-brand-icon">U</div>
+        USIL — Gestión de Credenciales
+    </a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-user">
+        <div class="topbar-user-avatar">{{ (user.name or 'U')[0]|upper if user else 'U' }}</div>
+        <span>{{ user.name if user else 'Usuario' }}</span>
+        <a href="/auth/logout" class="topbar-logout">Salir</a>
     </div>
 </div>
 
-<div class="page">
-    <div class="tabs">
-        <button type="button" class="tab-btn active"  onclick="switchTab(this,'crear')">Crear</button>
-        <button type="button" class="tab-btn"         onclick="switchTab(this,'reenviar')">Reenviar</button>
-        <button type="button" class="tab-btn"         onclick="switchTab(this,'verificar')">Verificar</button>
-        <button type="button" class="tab-btn"         onclick="switchTab(this,'preview')">Previsualizar</button>
-    </div>
+<!-- Toast area -->
+<div id="toast-area"></div>
 
-    <!-- ═══════════════════════ CREAR ═══════════════════════ -->
-    <div id="crear" class="pane active">
-        <div class="card">
-            <div class="card-title">Crear Usuario</div>
-            <div class="sub-tabs">
-                <button type="button" class="sub-btn active" onclick="switchSub(this,'crear','crearInd')">Individual</button>
-                <button type="button" class="sub-btn"        onclick="switchSub(this,'crear','crearPlanilla')">Planilla</button>
+<div class="shell">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-section">Operaciones</div>
+        <button type="button" class="sidebar-item active" onclick="showSection('crear', this)">
+            <span class="sidebar-icon">＋</span> Crear usuario
+        </button>
+        <button type="button" class="sidebar-item" onclick="showSection('reenviar', this)">
+            <span class="sidebar-icon">↩</span> Reenviar credenciales
+        </button>
+        <button type="button" class="sidebar-item" onclick="showSection('verificar', this)">
+            <span class="sidebar-icon">◎</span> Verificar cuenta
+        </button>
+        <div class="sidebar-section">Herramientas</div>
+        <button type="button" class="sidebar-item" onclick="showSection('preview', this)">
+            <span class="sidebar-icon">◈</span> Previsualizar
+        </button>
+    </nav>
+
+    <!-- Main -->
+    <div class="main">
+
+        <!-- ═══════════════ CREAR ═══════════════ -->
+        <div id="section-crear" class="section-wrap">
+            <div class="page-head">
+                <div class="breadcrumb"><a href="/">Inicio</a> / Gestión de Credenciales</div>
+                <h1>Crear usuario</h1>
             </div>
 
-            <!-- Individual -->
-            <div id="crearInd" class="sub-pane active">
-                <div id="crearIndAlert" class="alert"></div>
-                <form id="crearIndForm" autocomplete="off">
-                    <div class="row2">
-                        <div class="field">
-                            <label for="ci_nombre">Nombre Completo</label>
-                            <input type="text" id="ci_nombre" placeholder="Ej: Karen Gonzalez" required>
+            <div class="section">
+                <nav class="subnav">
+                    <button type="button" class="subnav-btn active" onclick="switchSub(this,'crear','crearInd')">Individual</button>
+                    <button type="button" class="subnav-btn" onclick="switchSub(this,'crear','crearPlanilla')">Planilla</button>
+                </nav>
+
+                <!-- Individual -->
+                <div id="crearInd" class="subpanel active">
+                    <form id="crearIndForm" autocomplete="off">
+                        <div class="form-grid-2">
+                            <div class="field">
+                                <label class="field-label" for="ci_nombre">Nombre completo <span class="req">*</span></label>
+                                <input type="text" id="ci_nombre" placeholder="Ej: Karen Gonzalez" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ci_cedula">Cédula <span class="req">*</span></label>
+                                <input type="text" id="ci_cedula" placeholder="Ej: 6868066" required>
+                            </div>
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="ci_email">Email personal <span class="req">*</span></label>
+                                <input type="email" id="ci_email" placeholder="usuario@gmail.com" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ci_rol">Rol</label>
+                                <select id="ci_rol" title="Rol">
+                                    <option value="student">Estudiante</option>
+                                    <option value="teacher">Docente</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ci_plataforma">Plataforma</label>
+                                <select id="ci_plataforma" title="Plataforma">
+                                    <option value="both">Canvas + Teams</option>
+                                    <option value="canvas">Solo Canvas</option>
+                                    <option value="teams">Solo Teams</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="ci_tipo">Tipo de programa</label>
+                                <select id="ci_tipo" title="Programa" onchange="toggleProg('ci')">
+                                    <option value="grado">Grado</option>
+                                    <option value="mba">MBA</option>
+                                    <option value="diplomado">Diplomado</option>
+                                </select>
+                            </div>
+                            <div class="field span2">
+                                <label class="field-label" for="ci_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
+                                <input type="text" id="ci_programa" placeholder="Ej: Diplomado en SQL avanzado" disabled>
+                            </div>
                         </div>
                         <div class="field">
-                            <label for="ci_cedula">Cédula</label>
-                            <input type="text" id="ci_cedula" placeholder="Ej: 6868066" required>
+                            <label class="field-label" for="ci_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
+                            <input type="text" id="ci_cc" placeholder="correo1@mail.com, correo2@mail.com">
                         </div>
+                        <label class="check-field">
+                            <input type="checkbox" id="ci_enviar" checked>
+                            Enviar correo de bienvenida con credenciales
+                        </label>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-default" onclick="document.getElementById('crearIndForm').reset(); toggleProg('ci');">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Crear usuario</button>
+                        </div>
+                    </form>
+                    <div id="crearIndResult" class="result-area"></div>
+                </div>
+
+                <!-- Planilla -->
+                <div id="crearPlanilla" class="subpanel">
+                    <div class="tbl-toolbar">
+                        <span class="count" id="cp_count">0 filas</span>
+                        <button type="button" class="btn btn-default btn-sm" onclick="addPlanillaRow()">+ Agregar fila</button>
                     </div>
-                    <div class="row2">
-                        <div class="field">
-                            <label for="ci_email">Email Personal</label>
-                            <input type="email" id="ci_email" placeholder="usuario@gmail.com" required>
-                        </div>
-                        <div class="field">
-                            <label for="ci_rol">Rol</label>
-                            <select id="ci_rol" title="Rol">
-                                <option value="student">Estudiante</option>
-                                <option value="teacher">Docente</option>
-                            </select>
-                        </div>
+                    <div class="tbl-wrap">
+                        <table class="data-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Nombre Completo</th>
+                                    <th>Cédula</th>
+                                    <th>Email Personal</th>
+                                    <th>Rol</th>
+                                    <th>Plataforma</th>
+                                    <th>Programa</th>
+                                    <th>Nombre del Programa</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cp_tbody"></tbody>
+                        </table>
                     </div>
-                    <div class="row3">
-                        <div class="field">
-                            <label for="ci_plataforma">Plataforma</label>
-                            <select id="ci_plataforma" title="Plataforma">
-                                <option value="both">Canvas + Teams</option>
-                                <option value="canvas">Solo Canvas</option>
-                                <option value="teams">Solo Teams</option>
-                            </select>
+                    <div class="prog-track" id="cp_prog"><div class="prog-bar prog-bar-init" id="cp_fill"></div></div>
+                    <div class="form-actions">
+                        <span id="cp_count2" class="txt-muted"></span>
+                        <button type="button" class="btn btn-primary" onclick="submitPlanilla()">Crear desde planilla</button>
+                    </div>
+                    <div id="crearPlanillaResult" class="result-area"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════ REENVIAR ═══════════════ -->
+        <div id="section-reenviar" class="section-wrap d-none">
+            <div class="page-head">
+                <div class="breadcrumb"><a href="/">Inicio</a> / Gestión de Credenciales</div>
+                <h1>Reenviar credenciales</h1>
+            </div>
+
+            <div class="section">
+                <nav class="subnav">
+                    <button type="button" class="subnav-btn active" onclick="switchSub(this,'reenviar','reenviarInd')">Individual</button>
+                    <button type="button" class="subnav-btn" onclick="switchSub(this,'reenviar','reenviarBulk')">Masivo</button>
+                </nav>
+
+                <!-- Individual -->
+                <div id="reenviarInd" class="subpanel active">
+                    <form id="reenviarIndForm" autocomplete="off">
+                        <div class="form-grid-2">
+                            <div class="field">
+                                <label class="field-label" for="ri_nombre">Nombre completo <span class="req">*</span></label>
+                                <input type="text" id="ri_nombre" placeholder="Ej: Karen Gonzalez" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ri_cedula">Cédula <span class="req">*</span></label>
+                                <input type="text" id="ri_cedula" placeholder="Ej: 6868066" required>
+                            </div>
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="ri_email">Email personal <span class="req">*</span></label>
+                                <input type="email" id="ri_email" placeholder="usuario@gmail.com" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ri_plataforma">Plataforma</label>
+                                <select id="ri_plataforma" title="Plataforma">
+                                    <option value="both">Canvas + Teams</option>
+                                    <option value="canvas">Solo Canvas</option>
+                                    <option value="teams">Solo Teams</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ri_tipo">Tipo de programa</label>
+                                <select id="ri_tipo" title="Programa" onchange="toggleProg('ri')">
+                                    <option value="grado">Grado</option>
+                                    <option value="mba">MBA</option>
+                                    <option value="diplomado">Diplomado</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="field">
-                            <label for="ci_tipo">Programa</label>
-                            <select id="ci_tipo" title="Tipo de programa" onchange="toggleProg('ci')">
+                            <label class="field-label" for="ri_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
+                            <input type="text" id="ri_programa" placeholder="Ej: Diplomado en SQL avanzado" disabled>
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="ri_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
+                            <input type="text" id="ri_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-default" onclick="document.getElementById('reenviarIndForm').reset(); toggleProg('ri');">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Reenviar credenciales</button>
+                        </div>
+                    </form>
+                    <div id="reenviarIndResult" class="result-area"></div>
+                </div>
+
+                <!-- Masivo -->
+                <div id="reenviarBulk" class="subpanel">
+                    <div class="tbl-toolbar">
+                        <span class="count" id="rm_count">0 filas</span>
+                        <button type="button" class="btn btn-default btn-sm" onclick="addRow('rm_tbody','reenviar')">+ Agregar fila</button>
+                    </div>
+                    <div class="form-grid-2 mb-12">
+                        <div class="field">
+                            <label class="field-label" for="rm_tipo">Programa (para todos)</label>
+                            <select id="rm_tipo" title="Programa" onchange="toggleProg('rm')">
                                 <option value="grado">Grado</option>
                                 <option value="mba">MBA</option>
                                 <option value="diplomado">Diplomado</option>
                             </select>
                         </div>
                         <div class="field">
-                            <label for="ci_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
-                            <input type="text" id="ci_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                            <label class="field-label" for="rm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
+                            <input type="text" id="rm_programa" placeholder="Ej: Diplomado en SQL..." disabled>
                         </div>
                     </div>
-                    <div class="field">
-                        <label for="ci_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
-                        <input type="text" id="ci_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                    <div class="tbl-wrap">
+                        <table class="data-tbl">
+                            <thead><tr><th>Nombre Completo</th><th>Cédula</th><th>Email Personal</th><th>Plataforma</th><th></th></tr></thead>
+                            <tbody id="rm_tbody"></tbody>
+                        </table>
                     </div>
-                    <label class="check-row">
-                        <input type="checkbox" id="ci_enviar" checked>
-                        Enviar correo de bienvenida con credenciales
-                    </label>
-                    <button type="submit" class="btn btn-primary">Crear usuario</button>
-                </form>
-                <div id="crearIndResult" class="result-wrap"></div>
-            </div>
-
-            <!-- Masivo -->
-            <div id="crearBulk" class="sub-pane">
-                <div id="crearBulkAlert" class="alert"></div>
-                <div class="row2" style="margin-bottom:14px;">
-                    <div class="field">
-                        <label for="cm_tipo">Programa (para todos)</label>
-                        <select id="cm_tipo" title="Programa" onchange="toggleProg('cm')">
-                            <option value="grado">Grado</option>
-                            <option value="mba">MBA</option>
-                            <option value="diplomado">Diplomado</option>
-                        </select>
+                    <div class="prog-track" id="rm_prog"><div class="prog-bar prog-bar-init" id="rm_fill"></div></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="submitBulk('reenviar')">Reenviar a todos</button>
                     </div>
-                    <div class="field">
-                        <label for="cm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
-                        <input type="text" id="cm_programa" placeholder="Ej: Diplomado en SQL..." disabled>
-                    </div>
+                    <div id="reenviarBulkResult" class="result-area"></div>
                 </div>
-                <div class="bulk-bar">
-                    <span class="count" id="cm_count">0 filas</span>
-                    <button type="button" class="btn btn-add" onclick="addRow('cm_tbody','crear')">+ Fila</button>
-                </div>
-                <div class="tbl-wrap">
-                    <table class="bulk-tbl">
-                        <thead><tr><th>Nombre Completo</th><th>Cédula</th><th>Email Personal</th><th>Rol</th><th>Plataforma</th><th></th></tr></thead>
-                        <tbody id="cm_tbody"></tbody>
-                    </table>
-                </div>
-                <div class="prog-wrap" id="cm_prog"><div class="prog-fill" id="cm_fill" style="width:0%"></div></div>
-                <button type="button" class="btn btn-primary" onclick="submitBulk('crear')" style="margin-top:12px;">Crear todos</button>
-                <div id="crearBulkResult" class="result-wrap"></div>
-            </div>
-
-            <!-- Planilla -->
-            <div id="crearPlanilla" class="sub-pane">
-                <div id="crearPlanillaAlert" class="alert"></div>
-                <div class="bulk-bar">
-                    <span class="count" id="cp_count">0 filas</span>
-                    <button type="button" class="btn btn-add" onclick="addPlanillaRow()">+ Fila</button>
-                </div>
-                <div class="tbl-wrap">
-                    <table class="bulk-tbl">
-                        <thead>
-                            <tr>
-                                <th>Nombre Completo</th>
-                                <th>Cédula</th>
-                                <th>Email Personal</th>
-                                <th>Rol</th>
-                                <th>Plataforma</th>
-                                <th>Programa</th>
-                                <th>Nombre del Programa</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="cp_tbody"></tbody>
-                    </table>
-                </div>
-                <div class="prog-wrap" id="cp_prog"><div class="prog-fill" id="cp_fill" style="width:0%"></div></div>
-                <button type="button" class="btn btn-primary" onclick="submitPlanilla()" style="margin-top:12px;">Crear desde planilla</button>
-                <div id="crearPlanillaResult" class="result-wrap"></div>
             </div>
         </div>
-    </div>
 
-    <!-- ═══════════════════════ REENVIAR ═══════════════════════ -->
-    <div id="reenviar" class="pane">
-        <div class="card">
-            <div class="card-title">Reenviar Credenciales</div>
-            <div class="sub-tabs">
-                <button type="button" class="sub-btn active" onclick="switchSub(this,'reenviar','reenviarInd')">Individual</button>
-                <button type="button" class="sub-btn"        onclick="switchSub(this,'reenviar','reenviarBulk')">Masivo</button>
+        <!-- ═══════════════ VERIFICAR ═══════════════ -->
+        <div id="section-verificar" class="section-wrap d-none">
+            <div class="page-head">
+                <div class="breadcrumb"><a href="/">Inicio</a> / Gestión de Credenciales</div>
+                <h1>Verificar cuenta</h1>
             </div>
 
-            <!-- Individual -->
-            <div id="reenviarInd" class="sub-pane active">
-                <div id="reenviarIndAlert" class="alert"></div>
-                <form id="reenviarIndForm" autocomplete="off">
-                    <div class="row2">
-                        <div class="field">
-                            <label for="ri_nombre">Nombre Completo</label>
-                            <input type="text" id="ri_nombre" placeholder="Ej: Karen Gonzalez" required>
+            <div class="section">
+                <nav class="subnav">
+                    <button type="button" class="subnav-btn active" onclick="switchSub(this,'verificar','verificarInd')">Individual</button>
+                    <button type="button" class="subnav-btn" onclick="switchSub(this,'verificar','verificarBulk')">Masivo</button>
+                </nav>
+
+                <!-- Individual -->
+                <div id="verificarInd" class="subpanel active">
+                    <form id="verificarIndForm" autocomplete="off">
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="vi_cedula">Cédula <span class="req">*</span></label>
+                                <input type="text" id="vi_cedula" placeholder="Ej: 6868066" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="vi_nombre">Nombre completo <span class="hint">(requerido para Teams)</span></label>
+                                <input type="text" id="vi_nombre" placeholder="Ej: Karen Gonzalez">
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="vi_plataforma">Plataforma</label>
+                                <select id="vi_plataforma" title="Plataforma">
+                                    <option value="both">Canvas + Teams</option>
+                                    <option value="canvas">Solo Canvas</option>
+                                    <option value="teams">Solo Teams</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="field">
-                            <label for="ri_cedula">Cédula</label>
-                            <input type="text" id="ri_cedula" placeholder="Ej: 6868066" required>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Verificar</button>
                         </div>
-                    </div>
-                    <div class="row3">
+                    </form>
+                    <div id="verificarIndResult" class="result-area"></div>
+                </div>
+
+                <!-- Masivo -->
+                <div id="verificarBulk" class="subpanel">
+                    <div class="form-grid-2 mb-12">
                         <div class="field">
-                            <label for="ri_email">Email Personal</label>
-                            <input type="email" id="ri_email" placeholder="usuario@gmail.com" required>
-                        </div>
-                        <div class="field">
-                            <label for="ri_plataforma">Plataforma</label>
-                            <select id="ri_plataforma" title="Plataforma">
+                            <label class="field-label" for="vm_plataforma">Plataforma (para todos)</label>
+                            <select id="vm_plataforma" title="Plataforma">
                                 <option value="both">Canvas + Teams</option>
                                 <option value="canvas">Solo Canvas</option>
                                 <option value="teams">Solo Teams</option>
                             </select>
                         </div>
-                        <div class="field">
-                            <label for="ri_tipo">Programa</label>
-                            <select id="ri_tipo" title="Programa" onchange="toggleProg('ri')">
-                                <option value="grado">Grado</option>
-                                <option value="mba">MBA</option>
-                                <option value="diplomado">Diplomado</option>
-                            </select>
-                        </div>
                     </div>
-                    <div class="field">
-                        <label for="ri_programa">Nombre del programa <span class="hint">(solo diplomados)</span></label>
-                        <input type="text" id="ri_programa" placeholder="Ej: Diplomado en SQL..." disabled>
+                    <div class="tbl-toolbar">
+                        <span class="count" id="vm_count">0 filas</span>
+                        <button type="button" class="btn btn-default btn-sm" onclick="addCheckRow()">+ Agregar fila</button>
                     </div>
-                    <div class="field">
-                        <label for="ri_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
-                        <input type="text" id="ri_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                    <div class="tbl-wrap">
+                        <table class="data-tbl">
+                            <thead><tr><th>Cédula</th><th>Nombre Completo <span class="txt-xs">(para Teams)</span></th><th></th></tr></thead>
+                            <tbody id="vm_tbody"></tbody>
+                        </table>
                     </div>
-                    <button type="submit" class="btn btn-primary">Reenviar credenciales</button>
-                </form>
-                <div id="reenviarIndResult" class="result-wrap"></div>
-            </div>
-
-            <!-- Masivo -->
-            <div id="reenviarBulk" class="sub-pane">
-                <div id="reenviarBulkAlert" class="alert"></div>
-                <div class="row2" style="margin-bottom:14px;">
-                    <div class="field">
-                        <label for="rm_tipo">Programa (para todos)</label>
-                        <select id="rm_tipo" title="Programa" onchange="toggleProg('rm')">
-                            <option value="grado">Grado</option>
-                            <option value="mba">MBA</option>
-                            <option value="diplomado">Diplomado</option>
-                        </select>
+                    <div class="prog-track" id="vm_prog"><div class="prog-bar prog-bar-init" id="vm_fill"></div></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="submitBulkCheck()">Verificar todos</button>
                     </div>
-                    <div class="field">
-                        <label for="rm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
-                        <input type="text" id="rm_programa" placeholder="Ej: Diplomado en SQL..." disabled>
-                    </div>
+                    <div id="verificarBulkResult" class="result-area"></div>
                 </div>
-                <div class="bulk-bar">
-                    <span class="count" id="rm_count">0 filas</span>
-                    <button type="button" class="btn btn-add" onclick="addRow('rm_tbody','reenviar')">+ Fila</button>
-                </div>
-                <div class="tbl-wrap">
-                    <table class="bulk-tbl">
-                        <thead><tr><th>Nombre Completo</th><th>Cédula</th><th>Email Personal</th><th>Plataforma</th><th></th></tr></thead>
-                        <tbody id="rm_tbody"></tbody>
-                    </table>
-                </div>
-                <div class="prog-wrap" id="rm_prog"><div class="prog-fill" id="rm_fill" style="width:0%"></div></div>
-                <button type="button" class="btn btn-primary" onclick="submitBulk('reenviar')" style="margin-top:12px;">Reenviar a todos</button>
-                <div id="reenviarBulkResult" class="result-wrap"></div>
             </div>
         </div>
-    </div>
 
-    <!-- ═══════════════════════ VERIFICAR ═══════════════════════ -->
-    <div id="verificar" class="pane">
-        <div class="card">
-            <div class="card-title">Verificar Cuentas</div>
-            <div class="sub-tabs">
-                <button type="button" class="sub-btn active" onclick="switchSub(this,'verificar','verificarInd')">Individual</button>
-                <button type="button" class="sub-btn"        onclick="switchSub(this,'verificar','verificarBulk')">Masivo</button>
+        <!-- ═══════════════ PREVIEW ═══════════════ -->
+        <div id="section-preview" class="section-wrap d-none">
+            <div class="page-head">
+                <div class="breadcrumb"><a href="/">Inicio</a> / Gestión de Credenciales</div>
+                <h1>Previsualizar credenciales</h1>
             </div>
 
-            <!-- Individual -->
-            <div id="verificarInd" class="sub-pane active">
-                <div id="verificarIndAlert" class="alert"></div>
-                <form id="verificarIndForm" autocomplete="off">
-                    <div class="row2">
-                        <div class="field">
-                            <label for="vi_cedula">Cédula</label>
-                            <input type="text" id="vi_cedula" placeholder="Ej: 6868066" required>
+            <div class="section">
+                <div class="subpanel active">
+                    <form id="previewForm" autocomplete="off">
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="pv_nombre">Nombre completo <span class="req">*</span></label>
+                                <input type="text" id="pv_nombre" placeholder="Ej: Karen Gonzalez" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="pv_cedula">Cédula <span class="req">*</span></label>
+                                <input type="text" id="pv_cedula" placeholder="Ej: 6868066" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="pv_rol">Rol</label>
+                                <select id="pv_rol" title="Rol">
+                                    <option value="student">Estudiante</option>
+                                    <option value="teacher">Docente</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="field">
-                            <label for="vi_nombre">Nombre Completo <span class="hint">(necesario para Teams)</span></label>
-                            <input type="text" id="vi_nombre" placeholder="Ej: Karen Gonzalez">
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Generar credenciales</button>
                         </div>
-                    </div>
-                    <div class="field" style="max-width:260px;">
-                        <label for="vi_plataforma">Plataforma</label>
-                        <select id="vi_plataforma" title="Plataforma">
-                            <option value="both">Canvas + Teams</option>
-                            <option value="canvas">Solo Canvas</option>
-                            <option value="teams">Solo Teams</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Verificar cuenta</button>
-                </form>
-                <div id="verificarIndResult" class="result-wrap"></div>
-            </div>
-
-            <!-- Masivo -->
-            <div id="verificarBulk" class="sub-pane">
-                <div id="verificarBulkAlert" class="alert"></div>
-                <div class="field" style="max-width:260px; margin-bottom:14px;">
-                    <label for="vm_plataforma">Plataforma (para todos)</label>
-                    <select id="vm_plataforma" title="Plataforma">
-                        <option value="both">Canvas + Teams</option>
-                        <option value="canvas">Solo Canvas</option>
-                        <option value="teams">Solo Teams</option>
-                    </select>
+                    </form>
+                    <div id="previewResult" class="result-area"></div>
                 </div>
-                <div class="bulk-bar">
-                    <span class="count" id="vm_count">0 filas</span>
-                    <button type="button" class="btn btn-add" onclick="addCheckRow()">+ Fila</button>
-                </div>
-                <div class="tbl-wrap">
-                    <table class="bulk-tbl">
-                        <thead><tr><th>Cédula</th><th>Nombre Completo <span class="hint">(para Teams)</span></th><th></th></tr></thead>
-                        <tbody id="vm_tbody"></tbody>
-                    </table>
-                </div>
-                <div class="prog-wrap" id="vm_prog"><div class="prog-fill" id="vm_fill" style="width:0%"></div></div>
-                <button type="button" class="btn btn-primary" onclick="submitBulkCheck()" style="margin-top:12px;">Verificar todos</button>
-                <div id="verificarBulkResult" class="result-wrap"></div>
             </div>
         </div>
-    </div>
 
-    <!-- ═══════════════════════ PREVIEW ═══════════════════════ -->
-    <div id="preview" class="pane">
-        <div class="card">
-            <div class="card-title">Previsualizar Credenciales</div>
-            <div id="previewAlert" class="alert"></div>
-            <form id="previewForm" autocomplete="off">
-                <div class="row2">
-                    <div class="field">
-                        <label for="pv_nombre">Nombre Completo</label>
-                        <input type="text" id="pv_nombre" placeholder="Ej: Karen Gonzalez" required>
-                    </div>
-                    <div class="field">
-                        <label for="pv_cedula">Cédula</label>
-                        <input type="text" id="pv_cedula" placeholder="Ej: 6868066" required>
-                    </div>
-                </div>
-                <div class="field" style="max-width:220px;">
-                    <label for="pv_rol">Rol</label>
-                    <select id="pv_rol" title="Rol">
-                        <option value="student">Estudiante</option>
-                        <option value="teacher">Docente</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary">Generar credenciales</button>
-            </form>
-            <div id="previewResult" class="result-wrap"></div>
-        </div>
-    </div>
-</div>
+    </div><!-- /main -->
+</div><!-- /shell -->
 
 <script>
 /* ── Navigation ── */
-function switchTab(btn, id) {
-    document.querySelectorAll('.pane').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+function showSection(id, btn) {
+    document.querySelectorAll('.section-wrap').forEach(el => el.classList.add('d-none'));
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('section-' + id).classList.remove('d-none');
     btn.classList.add('active');
 }
 function switchSub(btn, parentId, subId) {
-    const p = document.getElementById(parentId);
-    p.querySelectorAll('.sub-pane').forEach(el => el.classList.remove('active'));
-    p.querySelectorAll('.sub-btn').forEach(el => el.classList.remove('active'));
+    const section = document.getElementById('section-' + parentId);
+    section.querySelectorAll('.subpanel').forEach(el => el.classList.remove('active'));
+    section.querySelectorAll('.subnav-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(subId).classList.add('active');
     btn.classList.add('active');
 }
 
-/* ── Programa toggle ── */
+/* ── Toggle programa field ── */
 function toggleProg(pfx) {
-    const t   = document.getElementById(pfx + '_tipo').value;
+    const t = document.getElementById(pfx + '_tipo').value;
     const inp = document.getElementById(pfx + '_programa');
-    inp.disabled = (t !== 'diplomado');
+    if (!inp) return;
+    inp.disabled = t !== 'diplomado';
     if (inp.disabled) inp.value = '';
 }
 
-/* ── Alert ── */
-function showAlert(id, msg, type) {
-    const el = document.getElementById(id);
-    const icon = type === 'ok' ? '✓' : type === 'warn' ? '!' : '✕';
-    el.innerHTML = '<b>' + icon + '</b> ' + msg;
-    el.className = 'alert show alert-' + type;
-}
-function clearAlert(id) {
-    const el = document.getElementById(id);
-    el.className = 'alert';
+/* ── Toast notifications ── */
+function toast(title, msg, type) {
+    const area = document.getElementById('toast-area');
+    const icons = { ok: '✓', err: '✕', warn: '!' };
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.innerHTML =
+        '<div class="toast-icon">' + (icons[type] || '•') + '</div>' +
+        '<div class="toast-body"><div class="toast-title">' + title + '</div>' +
+        (msg ? '<div class="toast-msg">' + msg + '</div>' : '') + '</div>' +
+        '<button class="toast-close" onclick="this.closest(\'.toast\').remove()">✕</button>';
+    area.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
 }
 
-/* ── Loading ── */
+/* ── Loading state ── */
 function setLoading(btn, on) {
     if (on) { btn.disabled = true; btn._t = btn.textContent; btn.textContent = 'Procesando…'; }
-    else     { btn.disabled = false; btn.textContent = btn._t; }
+    else    { btn.disabled = false; btn.textContent = btn._t; }
 }
 
-/* ── Row counter ── */
-const COUNT_MAP = { cm_tbody:'cm_count', rm_tbody:'rm_count', vm_tbody:'vm_count' };
+/* ── Bulk row helpers ── */
+const COUNT_IDS = { cp_tbody:'cp_count', rm_tbody:'rm_count', vm_tbody:'vm_count' };
 function updateCount(tbodyId) {
-    const n  = document.getElementById(tbodyId).querySelectorAll('tr').length;
-    const el = document.getElementById(COUNT_MAP[tbodyId]);
+    const n = document.getElementById(tbodyId).querySelectorAll('tr').length;
+    const el = document.getElementById(COUNT_IDS[tbodyId]);
     if (el) el.textContent = n + ' fila' + (n !== 1 ? 's' : '');
+    const el2 = document.getElementById('cp_count2');
+    if (el2 && tbodyId === 'cp_tbody') el2.textContent = n + ' usuario' + (n !== 1 ? 's' : '') + ' a crear';
 }
 
-/* ── Bulk row ── */
 function addRow(tbodyId, type) {
     const tbody = document.getElementById(tbodyId);
     const tr = document.createElement('tr');
@@ -680,78 +970,94 @@ function addRow(tbodyId, type) {
             '<td><input type="email" placeholder="Email"></td>' +
             '<td><select title="Rol"><option value="student">Estudiante</option><option value="teacher">Docente</option></select></td>' +
             '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
-            '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+            '<td><button type="button" class="btn btn-danger btn-sm" onclick="delRow(this)">✕</button></td>';
     } else {
         tr.innerHTML =
             '<td><input type="text" placeholder="Nombre Completo"></td>' +
             '<td><input type="text" placeholder="Cédula"></td>' +
             '<td><input type="email" placeholder="Email"></td>' +
             '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
-            '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+            '<td><button type="button" class="btn btn-danger btn-sm" onclick="delRow(this)">✕</button></td>';
     }
     tbody.appendChild(tr);
     updateCount(tbodyId);
 }
+
+function addPlanillaRow() {
+    const tbody = document.getElementById('cp_tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+        '<td><input type="text" placeholder="Karen Gonzalez"></td>' +
+        '<td><input type="text" placeholder="6868066"></td>' +
+        '<td><input type="email" placeholder="correo@gmail.com"></td>' +
+        '<td><select title="Rol"><option value="student">Estudiante</option><option value="teacher">Docente</option></select></td>' +
+        '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
+        '<td><select title="Programa"><option value="grado">Grado</option><option value="mba">MBA</option><option value="diplomado">Diplomado</option></select></td>' +
+        '<td><input type="text" placeholder="Nombre del programa..."></td>' +
+        '<td><button type="button" class="btn btn-danger btn-sm" onclick="delRow(this)">✕</button></td>';
+    tbody.appendChild(tr);
+    updateCount('cp_tbody');
+}
+
 function addCheckRow() {
     const tbody = document.getElementById('vm_tbody');
     const tr = document.createElement('tr');
     tr.innerHTML =
         '<td><input type="text" placeholder="Cédula"></td>' +
         '<td><input type="text" placeholder="Nombre Completo"></td>' +
-        '<td><button type="button" class="btn btn-del" onclick="delRow(this)">✕</button></td>';
+        '<td><button type="button" class="btn btn-danger btn-sm" onclick="delRow(this)">✕</button></td>';
     tbody.appendChild(tr);
     updateCount('vm_tbody');
 }
+
 function delRow(btn) {
-    const tr    = btn.closest('tr');
+    const tr = btn.closest('tr');
     const tbody = tr.parentElement;
     tbody.removeChild(tr);
     updateCount(tbody.id);
 }
 
-/* ── CC parse ── */
 function parseCC(v) { return v.split(',').map(s => s.trim()).filter(Boolean); }
 
 /* ── Result renderers ── */
-function pill(status) {
-    if (status === 'ok')     return '<span class="pill pill-ok">Creado</span>';
-    if (status === 'exists') return '<span class="pill pill-exists">Ya existe</span>';
-    if (status === 'error')  return '<span class="pill pill-err">Error</span>';
-    return '<span class="pill pill-skip">—</span>';
+function statusBadge(status) {
+    if (status === 'ok')     return '<span class="badge badge-ok">Creado</span>';
+    if (status === 'exists') return '<span class="badge badge-exists">Ya existe</span>';
+    if (status === 'error')  return '<span class="badge badge-err">Error</span>';
+    return '';
 }
 
-function renderCreateResult(wrap, data) {
+function renderCreateSingle(wrap, data) {
     const creds = data.credentials || {};
-    const cs    = data.canvas  || {};
-    const ts    = data.teams   || {};
-    const email = data.email   || '';
+    const cv = data.canvas || {};
+    const tm = data.teams  || {};
+    const em = data.email  || '';
 
-    let html = '<div class="res-card">';
-    html += '<div class="res-card-head"><span>' + (data.student || '') + '</span>';
-    const canvasPill = pill(cs.status);
-    const teamsPill  = pill(ts.status);
-    const emailPill  = email === 'sent'
-        ? '<span class="pill pill-ok">Correo enviado</span>'
-        : (email.startsWith('error') ? '<span class="pill pill-err">Correo fallido</span>' : '');
-    html += '<span style="display:flex;gap:6px;">' + canvasPill + teamsPill + emailPill + '</span>';
-    html += '</div><div class="res-card-body">';
+    let html = '<div class="result-header">Resultado</div>';
+    html += '<div class="res-item">';
+    html += '<div class="res-item-head">';
+    html += '<span>' + (data.student || '') + '</span>';
+    html += '<div class="res-badges">';
+    if (cv.status) html += '<span style="font-size:11px;color:var(--text-muted);">Canvas</span>' + statusBadge(cv.status);
+    if (tm.status) html += '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Teams</span>' + statusBadge(tm.status);
+    if (em === 'sent') html += '<span class="badge badge-ok" style="margin-left:8px;">✉ Enviado</span>';
+    else if (em.startsWith('error')) html += '<span class="badge badge-err" style="margin-left:8px;">✉ Sin envío</span>';
+    html += '</div></div>';
+    html += '<div class="res-item-body">';
 
     if (creds.email) {
         html += '<div class="cred-card">';
-        html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + creds.email + '</span></div>';
+        html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + (creds.email) + '</span></div>';
         html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (creds.password || '') + '</span></div>';
         html += '</div>';
     }
-    if (cs.status === 'exists' && cs.existing) {
-        html += '<p style="margin-top:8px;font-size:.82rem;color:#744210;">Canvas: ya registrado como <b>' + (cs.existing.name || '') + '</b></p>';
-    } else if (cs.status === 'error') {
-        html += '<p style="margin-top:8px;font-size:.82rem;color:#742a2a;">Canvas: ' + (cs.error || '') + '</p>';
-    }
-    if (ts.status === 'exists' && ts.existing) {
-        html += '<p style="margin-top:4px;font-size:.82rem;color:#744210;">Teams: ya registrado como <b>' + (ts.existing.name || '') + '</b></p>';
-    } else if (ts.status === 'error') {
-        html += '<p style="margin-top:4px;font-size:.82rem;color:#742a2a;">Teams: ' + (ts.error || '') + '</p>';
-    }
+    const notices = [];
+    if (cv.status === 'exists') notices.push('<span style="color:var(--orange);">Canvas: ya registrado como <b>' + (cv.existing?.name || '?') + '</b></span>');
+    if (cv.status === 'error')  notices.push('<span style="color:var(--red);">Canvas: ' + (cv.error || '') + '</span>');
+    if (tm.status === 'exists') notices.push('<span style="color:var(--orange);">Teams: ya registrado como <b>' + (tm.existing?.name || '?') + '</b></span>');
+    if (tm.status === 'error')  notices.push('<span style="color:var(--red);">Teams: ' + (tm.error || '') + '</span>');
+    if (em.startsWith('error')) notices.push('<span style="color:var(--red);">Correo: ' + em + '</span>');
+    if (notices.length) html += '<div style="margin-top:10px;font-size:12.5px;display:flex;flex-direction:column;gap:4px;">' + notices.join('') + '</div>';
     html += '</div></div>';
 
     const rb = document.getElementById(wrap);
@@ -759,22 +1065,22 @@ function renderCreateResult(wrap, data) {
     rb.classList.add('show');
 }
 
-function renderResendResult(wrap, data) {
+function renderResendSingle(wrap, data) {
     const creds = data.credentials || {};
-    const email = data.email || '';
+    const em = data.email || '';
 
-    let html = '<div class="res-card">';
-    const emailPill = email === 'sent'
-        ? '<span class="pill pill-ok">Correo enviado</span>'
-        : '<span class="pill pill-err">Correo fallido</span>';
-    html += '<div class="res-card-head"><span>' + (data.student || '') + '</span>' + emailPill + '</div>';
-    html += '<div class="res-card-body"><div class="cred-card">';
+    let html = '<div class="result-header">Resultado</div>';
+    html += '<div class="res-item">';
+    html += '<div class="res-item-head"><span>' + (data.student || '') + '</span>';
+    html += em === 'sent'
+        ? '<span class="badge badge-ok">✉ Correo enviado</span>'
+        : '<span class="badge badge-err">✉ Sin envío</span>';
+    html += '</div><div class="res-item-body">';
+    html += '<div class="cred-card">';
     html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + (creds.email || '') + '</span></div>';
     html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (creds.password || '') + '</span></div>';
     html += '</div>';
-    if (email.startsWith('error')) {
-        html += '<p style="margin-top:8px;font-size:.82rem;color:#742a2a;">' + email + '</p>';
-    }
+    if (em.startsWith('error')) html += '<p style="margin-top:8px;font-size:12px;color:var(--red);">' + em + '</p>';
     html += '</div></div>';
 
     const rb = document.getElementById(wrap);
@@ -782,11 +1088,12 @@ function renderResendResult(wrap, data) {
     rb.classList.add('show');
 }
 
-function renderBulkResult(wrap, data) {
-    const ok   = (data.succeeded || []).length;
-    const fail = (data.failed    || []).length;
+function renderBulk(wrap, data) {
+    const ok = (data.succeeded || []).length;
+    const fail = (data.failed || []).length;
 
-    let html = '<div class="bulk-summary">';
+    let html = '<div class="result-header">Resumen</div>';
+    html += '<div class="stats-row">';
     html += '<div class="stat-box stat-ok"><div class="stat-n">' + ok + '</div><div class="stat-l">Exitosos</div></div>';
     html += '<div class="stat-box stat-err"><div class="stat-n">' + fail + '</div><div class="stat-l">Con error</div></div>';
     html += '<div class="stat-box"><div class="stat-n">' + (ok + fail) + '</div><div class="stat-l">Total</div></div>';
@@ -794,11 +1101,9 @@ function renderBulkResult(wrap, data) {
 
     if (fail > 0) {
         html += '<div class="divider"></div>';
-        html += '<p style="font-size:.82rem;font-weight:600;color:#742a2a;margin-bottom:8px;">Errores</p>';
+        html += '<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;">Errores</div>';
         for (const f of (data.failed || [])) {
-            html += '<div style="font-size:.82rem;background:#fff5f5;border:1px solid #fed7d7;border-radius:4px;padding:6px 10px;margin-bottom:6px;">';
-            html += '<b>' + (f.student || f.full_name || '?') + '</b>: ' + (f.error || '');
-            html += '</div>';
+            html += '<div class="error-item"><b>' + (f.student || f.full_name || '?') + ':</b> ' + (f.error || '') + '</div>';
         }
     }
 
@@ -811,74 +1116,61 @@ function renderCheckSingle(wrap, data) {
     const cv = data.canvas;
     const tm = data.teams;
 
-    const cvPill = cv
-        ? (cv.exists === true  ? '<span class="pill pill-exists">Existe</span>'
-         : cv.exists === false ? '<span class="pill pill-ok">Libre</span>'
-         :                       '<span class="pill pill-err">Error</span>')
+    const cvBadge = cv
+        ? (cv.exists === true  ? '<span class="badge badge-exists">Existe</span>'
+         : cv.exists === false ? '<span class="badge badge-free">Libre</span>'
+         :                       '<span class="badge badge-err">Error</span>')
         : '';
-    const tmPill = tm
-        ? (tm.exists === true  ? '<span class="pill pill-exists">Existe</span>'
-         : tm.exists === false ? '<span class="pill pill-ok">Libre</span>'
-         :                       '<span class="pill pill-err">Error</span>')
+    const tmBadge = tm
+        ? (tm.exists === true  ? '<span class="badge badge-exists">Existe</span>'
+         : tm.exists === false ? '<span class="badge badge-free">Libre</span>'
+         :                       '<span class="badge badge-err">Error</span>')
         : '';
 
-    let html = '<div class="res-card"><div class="res-card-head">';
+    let html = '<div class="result-header">Resultado de verificación</div>';
+    html += '<div class="res-item"><div class="res-item-head">';
     html += '<span>' + (data.full_name || data.cedula) + '</span>';
-    html += '<span style="display:flex;gap:6px;">';
-    if (cv) html += '<span style="font-size:.75rem;color:#718096;">Canvas</span>' + cvPill;
-    if (tm) html += '<span style="font-size:.75rem;color:#718096;">Teams</span>'  + tmPill;
-    html += '</span></div><div class="res-card-body">';
+    html += '<div class="res-badges">';
+    if (cv) html += '<span style="font-size:11px;color:var(--text-muted);">Canvas</span>' + cvBadge;
+    if (tm) html += '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Teams</span>' + tmBadge;
+    html += '</div></div><div class="res-item-body">';
 
-    if (data.generated_email) {
-        html += '<div style="font-size:.82rem;color:#718096;margin-bottom:8px;">Email generado: <b>' + data.generated_email + '</b></div>';
-    }
+    if (data.generated_email) html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Email generado: <b style="color:var(--text);">' + data.generated_email + '</b></div>';
 
     if (cv && cv.exists === true) {
-        html += '<div style="margin-bottom:4px;"><b>Canvas:</b>';
-        html += ' <span style="font-size:.82rem;">Registrado como <b>' + (cv.name || '—') + '</b>';
-        if (cv.login_id) html += ' &nbsp;·&nbsp; Login: ' + cv.login_id;
-        if (cv.canvas_id) html += ' &nbsp;·&nbsp; ID: ' + cv.canvas_id;
-        html += '</span></div>';
+        html += '<div style="font-size:13px;margin-bottom:4px;"><b>Canvas:</b> ' + (cv.name || '—') + ' · Login: <span style="font-family:monospace;">' + (cv.login_id || '—') + '</span> · ID: ' + (cv.canvas_id || '—') + '</div>';
     }
     if (tm && tm.exists === true) {
-        html += '<div style="margin-bottom:4px;"><b>Teams:</b>';
-        html += ' <span style="font-size:.82rem;">Registrado como <b>' + (tm.name || '—') + '</b>';
-        if (tm.upn) html += ' &nbsp;·&nbsp; ' + tm.upn;
-        if (tm.account_enabled === false) html += ' &nbsp;·&nbsp; <span style="color:#e53e3e;">Cuenta desactivada</span>';
-        html += '</span></div>';
+        const enabled = tm.account_enabled === false ? ' <span class="badge badge-err">Desactivada</span>' : '';
+        html += '<div style="font-size:13px;margin-bottom:4px;"><b>Teams:</b> ' + (tm.name || '—') + ' · <span style="font-family:monospace;">' + (tm.upn || '—') + '</span>' + enabled + '</div>';
     }
-    if (cv && cv.error) html += '<div style="font-size:.82rem;color:#742a2a;">Canvas error: ' + cv.error + '</div>';
-    if (tm && tm.error) html += '<div style="font-size:.82rem;color:#742a2a;">Teams error: '  + tm.error  + '</div>';
+    if (cv?.error) html += '<div style="font-size:12px;color:var(--red);">Canvas: ' + cv.error + '</div>';
+    if (tm?.error) html += '<div style="font-size:12px;color:var(--red);">Teams: ' + tm.error + '</div>';
 
     html += '</div></div>';
-
     const rb = document.getElementById(wrap);
     rb.innerHTML = html;
     rb.classList.add('show');
 }
 
 function renderCheckBulk(wrap, results, summary) {
-    let html = '<div class="bulk-summary">';
+    let html = '<div class="result-header">Resultado de verificación masiva</div>';
+    html += '<div class="stats-row">';
     html += '<div class="stat-box"><div class="stat-n">' + summary.total + '</div><div class="stat-l">Verificados</div></div>';
     html += '<div class="stat-box stat-warn"><div class="stat-n">' + summary.found_canvas + '</div><div class="stat-l">En Canvas</div></div>';
-    html += '<div class="stat-box stat-warn"><div class="stat-n">' + summary.found_teams  + '</div><div class="stat-l">En Teams</div></div>';
+    html += '<div class="stat-box stat-warn"><div class="stat-n">' + summary.found_teams + '</div><div class="stat-l">En Teams</div></div>';
     html += '</div>';
     html += '<div class="tbl-wrap"><table class="vrf-tbl"><thead><tr><th>Cédula</th><th>Nombre</th><th>Canvas</th><th>Teams</th></tr></thead><tbody>';
     for (const r of results) {
-        const cv = r.canvas;
-        const tm = r.teams;
-        const cvCell = cv
-            ? (cv.exists === true
-                ? '<span class="pill pill-exists">Existe</span><div class="vrf-detail">' + (cv.name || '') + '</div>'
-                : cv.exists === false ? '<span class="pill pill-ok">Libre</span>'
-                : '<span class="pill pill-err">Error</span><div class="vrf-detail">' + (cv.error || '') + '</div>')
-            : '—';
-        const tmCell = tm
-            ? (tm.exists === true
-                ? '<span class="pill pill-exists">Existe</span><div class="vrf-detail">' + (tm.name || '') + '</div>'
-                : tm.exists === false ? '<span class="pill pill-ok">Libre</span>'
-                : '<span class="pill pill-err">Error</span><div class="vrf-detail">' + (tm.error || '') + '</div>')
-            : '—';
+        const cv = r.canvas, tm = r.teams;
+        const cvCell = !cv ? '—' : cv.exists === true
+            ? '<span class="badge badge-exists">Existe</span><div class="vrf-detail">' + (cv.name || '') + '</div>'
+            : cv.exists === false ? '<span class="badge badge-free">Libre</span>'
+            : '<span class="badge badge-err">Error</span><div class="vrf-detail">' + (cv.error || '') + '</div>';
+        const tmCell = !tm ? '—' : tm.exists === true
+            ? '<span class="badge badge-exists">Existe</span><div class="vrf-detail">' + (tm.name || '') + '</div>'
+            : tm.exists === false ? '<span class="badge badge-free">Libre</span>'
+            : '<span class="badge badge-err">Error</span><div class="vrf-detail">' + (tm.error || '') + '</div>';
         html += '<tr><td>' + (r.cedula||'') + '</td><td>' + (r.full_name||'') + '</td><td>' + cvCell + '</td><td>' + tmCell + '</td></tr>';
     }
     html += '</tbody></table></div>';
@@ -888,11 +1180,12 @@ function renderCheckBulk(wrap, results, summary) {
 }
 
 function renderPreview(wrap, data) {
-    let html = '<div class="cred-card">';
+    let html = '<div class="result-header">Credenciales generadas</div>';
+    html += '<div class="cred-card">';
     html += '<div class="cred-row"><span class="cred-k">Nombre</span><span class="cred-v">' + (data.full_name || '') + '</span></div>';
     html += '<div class="cred-row"><span class="cred-k">Cédula</span><span class="cred-v mono">' + (data.cedula || '') + '</span></div>';
     html += '<div class="cred-row"><span class="cred-k">Email institucional</span><span class="cred-v mono">' + (data.institutional_email || '') + '</span></div>';
-    html += '<div class="cred-row"><span class="cred-k">Usuario (login)</span><span class="cred-v mono">' + (data.login_id || '') + '</span></div>';
+    html += '<div class="cred-row"><span class="cred-k">Login</span><span class="cred-v mono">' + (data.login_id || '') + '</span></div>';
     html += '<div class="cred-row"><span class="cred-k">Contraseña</span><span class="cred-v mono">' + (data.password || '') + '</span></div>';
     html += '<div class="cred-row"><span class="cred-k">Rol</span><span class="cred-v">' + (data.role === 'student' ? 'Estudiante' : 'Docente') + '</span></div>';
     html += '</div>';
@@ -901,13 +1194,12 @@ function renderPreview(wrap, data) {
     rb.classList.add('show');
 }
 
-/* ── Forms ── */
+/* ── Form submissions ── */
 document.getElementById('crearIndForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('.btn-primary');
-    clearAlert('crearIndAlert');
-    setLoading(btn, true);
     document.getElementById('crearIndResult').classList.remove('show');
+    setLoading(btn, true);
     try {
         const res = await fetch('/ingreso/create', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -924,30 +1216,25 @@ document.getElementById('crearIndForm').addEventListener('submit', async e => {
             })
         });
         const data = await res.json();
-        renderCreateResult('crearIndResult', data);
-        const cs = data.canvas && data.canvas.status;
-        const ts = data.teams  && data.teams.status;
+        if (!res.ok) { toast('Error', data.detail || 'Error al crear usuario', 'err'); return; }
+        renderCreateSingle('crearIndResult', data);
+        const cs = data.canvas?.status, ts = data.teams?.status;
         if (cs === 'exists' || ts === 'exists') {
-            const parts = [];
-            if (cs === 'exists') parts.push('Canvas');
-            if (ts === 'exists') parts.push('Teams');
-            showAlert('crearIndAlert', 'El usuario ya existe en ' + parts.join(' y '), 'warn');
-        } else if (res.ok) {
-            showAlert('crearIndAlert', 'Usuario creado correctamente', 'ok');
-            e.target.reset(); toggleProg('ci');
+            const parts = [cs === 'exists' ? 'Canvas' : null, ts === 'exists' ? 'Teams' : null].filter(Boolean);
+            toast('Usuario ya existe', 'Registrado en ' + parts.join(' y '), 'warn');
         } else {
-            showAlert('crearIndAlert', data.detail || 'Error al crear usuario', 'err');
+            toast('Usuario creado', data.student, 'ok');
+            e.target.reset(); toggleProg('ci');
         }
-    } catch (err) { showAlert('crearIndAlert', err.message, 'err'); }
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
     finally { setLoading(btn, false); }
 });
 
 document.getElementById('reenviarIndForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('.btn-primary');
-    clearAlert('reenviarIndAlert');
-    setLoading(btn, true);
     document.getElementById('reenviarIndResult').classList.remove('show');
+    setLoading(btn, true);
     try {
         const res = await fetch('/ingreso/resend-credentials', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -962,70 +1249,78 @@ document.getElementById('reenviarIndForm').addEventListener('submit', async e =>
             })
         });
         const data = await res.json();
-        renderResendResult('reenviarIndResult', data);
-        if (res.ok && data.email === 'sent') {
-            showAlert('reenviarIndAlert', 'Credenciales enviadas correctamente', 'ok');
-            e.target.reset(); toggleProg('ri');
-        } else if (data.email && data.email.startsWith('error')) {
-            showAlert('reenviarIndAlert', 'No se pudo enviar el correo: ' + data.email, 'err');
-        } else if (!res.ok) {
-            showAlert('reenviarIndAlert', data.detail || 'Error al reenviar', 'err');
-        }
-    } catch (err) { showAlert('reenviarIndAlert', err.message, 'err'); }
+        if (!res.ok) { toast('Error', data.detail || 'Error al reenviar', 'err'); return; }
+        renderResendSingle('reenviarIndResult', data);
+        if (data.email === 'sent') { toast('Correo enviado', data.student, 'ok'); e.target.reset(); toggleProg('ri'); }
+        else toast('Sin envío', data.email, 'warn');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
     finally { setLoading(btn, false); }
 });
 
-async function submitBulk(mode) {
-    const isCrear   = mode === 'crear';
-    const tbodyId   = isCrear ? 'cm_tbody' : 'rm_tbody';
-    const alertId   = isCrear ? 'crearBulkAlert'   : 'reenviarBulkAlert';
-    const resultId  = isCrear ? 'crearBulkResult'   : 'reenviarBulkResult';
-    const progWrap  = isCrear ? 'cm_prog'  : 'rm_prog';
-    const progFill  = isCrear ? 'cm_fill'  : 'rm_fill';
-    const tipo      = document.getElementById(isCrear ? 'cm_tipo'    : 'rm_tipo').value;
-    const programa  = document.getElementById(isCrear ? 'cm_programa': 'rm_programa').value;
-    const rows      = document.getElementById(tbodyId).querySelectorAll('tr');
-
-    clearAlert(alertId);
-    document.getElementById(resultId).classList.remove('show');
-
-    if (!rows.length) { showAlert(alertId, 'Agrega al menos una fila', 'err'); return; }
-
+async function submitPlanilla() {
+    const rows = document.getElementById('cp_tbody').querySelectorAll('tr');
+    document.getElementById('crearPlanillaResult').classList.remove('show');
+    if (!rows.length) { toast('Sin datos', 'Agrega al menos una fila', 'warn'); return; }
     const students = [];
     for (const tr of rows) {
-        const ins  = tr.querySelectorAll('input');
+        const ins = tr.querySelectorAll('input');
         const sels = tr.querySelectorAll('select');
-        if (isCrear) {
-            students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
-                role: sels[0].value, platform: sels[1].value, program_type: tipo, program_name: programa, send_email: true, cc: [] });
-        } else {
-            students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
-                platform: sels[0].value, program_type: tipo, program_name: programa, cc: [] });
-        }
+        students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
+            role: sels[0].value, platform: sels[1].value, program_type: sels[2].value,
+            program_name: ins[3].value, send_email: true, cc: [] });
     }
+    document.getElementById('cp_prog').classList.add('show');
+    document.getElementById('cp_fill').style.width = '25%';
+    try {
+        const res = await fetch('/ingreso/bulk', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ students }),
+        });
+        document.getElementById('cp_fill').style.width = '100%';
+        const data = await res.json();
+        renderBulk('crearPlanillaResult', data);
+        const ok = (data.succeeded||[]).length, fail = (data.failed||[]).length;
+        toast(ok + ' creados', fail > 0 ? fail + ' con error' : 'Sin errores', fail > 0 ? 'warn' : 'ok');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
+    finally { setTimeout(() => document.getElementById('cp_prog').classList.remove('show'), 1200); }
+}
 
-    const endpoint = isCrear ? '/ingreso/bulk' : '/ingreso/bulk-resend';
-    document.getElementById(progWrap).classList.add('show');
-    document.getElementById(progFill).style.width = '25%';
-
+async function submitBulk(mode) {
+    const tbodyId = mode === 'reenviar' ? 'rm_tbody' : 'cm_tbody';
+    const resultId = mode === 'reenviar' ? 'reenviarBulkResult' : 'crearBulkResult';
+    const progId = mode === 'reenviar' ? 'rm_prog' : 'cm_prog';
+    const fillId = mode === 'reenviar' ? 'rm_fill' : 'cm_fill';
+    const tipo = document.getElementById(mode === 'reenviar' ? 'rm_tipo' : 'cm_tipo').value;
+    const prog = document.getElementById(mode === 'reenviar' ? 'rm_programa' : 'cm_programa').value;
+    const rows = document.getElementById(tbodyId).querySelectorAll('tr');
+    document.getElementById(resultId).classList.remove('show');
+    if (!rows.length) { toast('Sin datos', 'Agrega al menos una fila', 'warn'); return; }
+    const students = [];
+    for (const tr of rows) {
+        const ins = tr.querySelectorAll('input');
+        const sels = tr.querySelectorAll('select');
+        students.push({ full_name: ins[0].value, cedula: ins[1].value, personal_email: ins[2].value,
+            platform: sels[0].value, program_type: tipo, program_name: prog, cc: [] });
+    }
+    const endpoint = mode === 'reenviar' ? '/ingreso/bulk-resend' : '/ingreso/bulk';
+    document.getElementById(progId).classList.add('show');
+    document.getElementById(fillId).style.width = '25%';
     try {
         const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ students }) });
-        document.getElementById(progFill).style.width = '100%';
+        document.getElementById(fillId).style.width = '100%';
         const data = await res.json();
-        renderBulkResult(resultId, data);
-        const ok   = (data.succeeded || []).length;
-        const fail = (data.failed    || []).length;
-        showAlert(alertId, ok + ' procesados, ' + fail + ' con error', fail > 0 ? 'warn' : 'ok');
-    } catch (err) { showAlert(alertId, err.message, 'err'); }
-    finally { setTimeout(() => document.getElementById(progWrap).classList.remove('show'), 1200); }
+        renderBulk(resultId, data);
+        const ok = (data.succeeded||[]).length, fail = (data.failed||[]).length;
+        toast(ok + ' procesados', fail > 0 ? fail + ' con error' : 'Sin errores', fail > 0 ? 'warn' : 'ok');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
+    finally { setTimeout(() => document.getElementById(progId).classList.remove('show'), 1200); }
 }
 
 document.getElementById('verificarIndForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('.btn-primary');
-    clearAlert('verificarIndAlert');
-    setLoading(btn, true);
     document.getElementById('verificarIndResult').classList.remove('show');
+    setLoading(btn, true);
     try {
         const res = await fetch('/ingreso/check-account', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1036,35 +1331,27 @@ document.getElementById('verificarIndForm').addEventListener('submit', async e =
             })
         });
         const data = await res.json();
+        if (!res.ok) { toast('Error', data.detail || 'Error en verificación', 'err'); return; }
         renderCheckSingle('verificarIndResult', data);
-        const cEx = data.canvas && data.canvas.exists === true;
-        const tEx = data.teams  && data.teams.exists  === true;
-        if (cEx || tEx) {
-            const parts = [cEx ? 'Canvas' : null, tEx ? 'Teams' : null].filter(Boolean);
-            showAlert('verificarIndAlert', 'Usuario encontrado en ' + parts.join(' y '), 'warn');
-        } else {
-            showAlert('verificarIndAlert', 'Usuario no encontrado — puede ser creado', 'ok');
-        }
-    } catch (err) { showAlert('verificarIndAlert', err.message, 'err'); }
+        const cEx = data.canvas?.exists === true, tEx = data.teams?.exists === true;
+        if (cEx || tEx) toast('Usuario encontrado', [cEx?'Canvas':null, tEx?'Teams':null].filter(Boolean).join(' y '), 'warn');
+        else toast('Usuario libre', 'No existe en ninguna plataforma', 'ok');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
     finally { setLoading(btn, false); }
 });
 
 async function submitBulkCheck() {
     const rows = document.getElementById('vm_tbody').querySelectorAll('tr');
-    clearAlert('verificarBulkAlert');
     document.getElementById('verificarBulkResult').classList.remove('show');
-    if (!rows.length) { showAlert('verificarBulkAlert', 'Agrega al menos una fila', 'err'); return; }
-
+    if (!rows.length) { toast('Sin datos', 'Agrega al menos una fila', 'warn'); return; }
     const platform = document.getElementById('vm_plataforma').value;
     const students = [];
     for (const tr of rows) {
         const ins = tr.querySelectorAll('input');
         students.push({ cedula: ins[0].value, full_name: ins[1].value, platform });
     }
-
     document.getElementById('vm_prog').classList.add('show');
     document.getElementById('vm_fill').style.width = '25%';
-
     try {
         const res = await fetch('/ingreso/bulk-check', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1073,22 +1360,19 @@ async function submitBulkCheck() {
         document.getElementById('vm_fill').style.width = '100%';
         const data = await res.json();
         renderCheckBulk('verificarBulkResult', data.results || [], {
-            total: data.total || 0, found_canvas: data.found_canvas || 0, found_teams: data.found_teams || 0
+            total: data.total||0, found_canvas: data.found_canvas||0, found_teams: data.found_teams||0
         });
-        const fc = data.found_canvas || 0, ft = data.found_teams || 0;
-        showAlert('verificarBulkAlert',
-            data.total + ' verificados — ' + fc + ' en Canvas, ' + ft + ' en Teams',
-            (fc > 0 || ft > 0) ? 'warn' : 'ok');
-    } catch (err) { showAlert('verificarBulkAlert', err.message, 'err'); }
+        toast(data.total + ' verificados', data.found_canvas + ' en Canvas · ' + data.found_teams + ' en Teams',
+            (data.found_canvas > 0 || data.found_teams > 0) ? 'warn' : 'ok');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
     finally { setTimeout(() => document.getElementById('vm_prog').classList.remove('show'), 1200); }
 }
 
 document.getElementById('previewForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('.btn-primary');
-    clearAlert('previewAlert');
-    setLoading(btn, true);
     document.getElementById('previewResult').classList.remove('show');
+    setLoading(btn, true);
     try {
         const res = await fetch('/ingreso/preview', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1097,86 +1381,15 @@ document.getElementById('previewForm').addEventListener('submit', async e => {
                 cedula:         document.getElementById('pv_cedula').value,
                 personal_email: 'preview@usil.edu.py',
                 role:           document.getElementById('pv_rol').value,
+                platform:       'both', program_type: 'grado', send_email: false, cc: [],
             })
         });
         const data = await res.json();
-        if (res.ok) {
-            renderPreview('previewResult', data);
-            showAlert('previewAlert', 'Credenciales generadas', 'ok');
-        } else {
-            showAlert('previewAlert', data.detail || 'Error', 'err');
-        }
-    } catch (err) { showAlert('previewAlert', err.message, 'err'); }
+        if (res.ok) { renderPreview('previewResult', data); toast('Credenciales generadas', data.full_name, 'ok'); }
+        else toast('Error', data.detail || 'Error', 'err');
+    } catch (err) { toast('Error de conexión', err.message, 'err'); }
     finally { setLoading(btn, false); }
 });
-
-/* ── Planilla handlers ── */
-function addPlanillaRow() {
-    const tbody = document.getElementById('cp_tbody');
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-        '<td><input type="text" placeholder="Karen Gonzalez"></td>' +
-        '<td><input type="text" placeholder="6868066"></td>' +
-        '<td><input type="email" placeholder="usuario@gmail.com"></td>' +
-        '<td><select title="Rol"><option value="student">Estudiante</option><option value="teacher">Docente</option></select></td>' +
-        '<td><select title="Plataforma"><option value="both">Canvas+Teams</option><option value="canvas">Canvas</option><option value="teams">Teams</option></select></td>' +
-        '<td><select title="Programa"><option value="grado">Grado</option><option value="mba">MBA</option><option value="diplomado">Diplomado</option></select></td>' +
-        '<td><input type="text" placeholder="Ej: Diplomado en SQL..."></td>' +
-        '<td><button type="button" class="btn btn-del" onclick="delPlanillaRow(this)">✕</button></td>';
-    tbody.appendChild(tr);
-    updateCount('cp_tbody', 'cp_count');
-}
-
-function delPlanillaRow(btn) {
-    const tr = btn.closest('tr');
-    tr.parentElement.removeChild(tr);
-    updateCount('cp_tbody', 'cp_count');
-}
-
-async function submitPlanilla() {
-    const rows = document.getElementById('cp_tbody').querySelectorAll('tr');
-    clearAlert('crearPlanillaAlert');
-    document.getElementById('crearPlanillaResult').classList.remove('show');
-
-    if (!rows.length) { showAlert('crearPlanillaAlert', 'Agrega al menos una fila', 'err'); return; }
-
-    const students = [];
-    for (const tr of rows) {
-        const ins  = tr.querySelectorAll('input');
-        const sels = tr.querySelectorAll('select');
-        students.push({
-            full_name: ins[0].value,
-            cedula: ins[1].value,
-            personal_email: ins[2].value,
-            role: sels[0].value,
-            platform: sels[1].value,
-            program_type: sels[2].value,
-            program_name: ins[3].value,
-            send_email: true,
-            cc: [],
-        });
-    }
-
-    document.getElementById('cp_prog').classList.add('show');
-    document.getElementById('cp_fill').style.width = '25%';
-
-    try {
-        const res = await fetch('/ingreso/bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ students }),
-        });
-        document.getElementById('cp_fill').style.width = '100%';
-        const data = await res.json();
-        renderBulkResult('crearPlanillaResult', data);
-        const ok = (data.succeeded || []).length, fail = (data.failed || []).length;
-        showAlert('crearPlanillaAlert', ok + ' creados, ' + fail + ' con error', fail > 0 ? 'warn' : 'ok');
-    } catch (err) {
-        showAlert('crearPlanillaAlert', err.message, 'err');
-    } finally {
-        setTimeout(() => document.getElementById('cp_prog').classList.remove('show'), 1200);
-    }
-}
 </script>
 </body>
 </html>
