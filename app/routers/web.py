@@ -59,6 +59,11 @@ async def diagnostico(request: Request):
 
 
 
+@router.get("/ui/teams", response_class=HTMLResponse)
+async def teams_root(request: Request):
+    return RedirectResponse(url="/ui/teams/teams", status_code=302)
+
+
 @router.get("/ui/teams/users", response_class=HTMLResponse)
 async def teams_users(request: Request):
     return _r(request, "teams/users.html")
