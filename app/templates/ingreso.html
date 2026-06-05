@@ -594,7 +594,8 @@
             <div class="section">
                 <nav class="subnav">
                     <button type="button" class="subnav-btn active" onclick="switchSub(this,'crear','crearInd')">Individual</button>
-                    <button type="button" class="subnav-btn" onclick="switchSub(this,'crear','crearPlanilla')">Planilla</button>
+                    <button type="button" class="subnav-btn" onclick="switchSub(this,'crear','crearMasivo')">Masivo</button>
+                    <button type="button" class="subnav-btn" onclick="switchSub(this,'crear','crearPlanilla')">Planilla completa</button>
                 </nav>
 
                 <!-- Individual -->
@@ -661,7 +662,49 @@
                     <div id="crearIndResult" class="result-area"></div>
                 </div>
 
-                <!-- Planilla -->
+                <!-- Masivo -->
+                <div id="crearMasivo" class="subpanel">
+                    <div class="form-grid-2 mb-12">
+                        <div class="field">
+                            <label class="field-label" for="cm_tipo">Tipo de programa <span class="hint">(aplica a todos)</span></label>
+                            <select id="cm_tipo" title="Programa" onchange="toggleProg('cm')">
+                                <option value="grado">Grado</option>
+                                <option value="mba">MBA</option>
+                                <option value="diplomado">Diplomado</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field-label" for="cm_programa">Nombre del programa <span class="hint">(diplomados)</span></label>
+                            <input type="text" id="cm_programa" placeholder="Ej: Diplomado en SQL avanzado" disabled>
+                        </div>
+                    </div>
+                    <div class="tbl-toolbar">
+                        <span class="count" id="cm_count">0 filas</span>
+                        <button type="button" class="btn btn-default btn-sm" onclick="addRow('cm_tbody','crear')">+ Agregar fila</button>
+                    </div>
+                    <div class="tbl-wrap">
+                        <table class="data-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Nombre Completo</th>
+                                    <th>Cédula</th>
+                                    <th>Email Personal</th>
+                                    <th>Rol</th>
+                                    <th>Plataforma</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cm_tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="prog-track" id="cm_prog"><div class="prog-bar prog-bar-init" id="cm_fill"></div></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="submitBulk('crear')">Crear todos</button>
+                    </div>
+                    <div id="crearMasivoResult" class="result-area"></div>
+                </div>
+
+                <!-- Planilla completa -->
                 <div id="crearPlanilla" class="subpanel">
                     <div class="tbl-toolbar">
                         <span class="count" id="cp_count">0 filas</span>
@@ -951,7 +994,7 @@ function setLoading(btn, on) {
 }
 
 /* ── Bulk row helpers ── */
-const COUNT_IDS = { cp_tbody:'cp_count', rm_tbody:'rm_count', vm_tbody:'vm_count' };
+const COUNT_IDS = { cm_tbody:'cm_count', cp_tbody:'cp_count', rm_tbody:'rm_count', vm_tbody:'vm_count' };
 function updateCount(tbodyId) {
     const n = document.getElementById(tbodyId).querySelectorAll('tr').length;
     const el = document.getElementById(COUNT_IDS[tbodyId]);
@@ -1287,9 +1330,9 @@ async function submitPlanilla() {
 
 async function submitBulk(mode) {
     const tbodyId = mode === 'reenviar' ? 'rm_tbody' : 'cm_tbody';
-    const resultId = mode === 'reenviar' ? 'reenviarBulkResult' : 'crearBulkResult';
-    const progId = mode === 'reenviar' ? 'rm_prog' : 'cm_prog';
-    const fillId = mode === 'reenviar' ? 'rm_fill' : 'cm_fill';
+    const resultId = mode === 'reenviar' ? 'reenviarBulkResult' : 'crearMasivoResult';
+    const progId  = mode === 'reenviar' ? 'rm_prog' : 'cm_prog';
+    const fillId  = mode === 'reenviar' ? 'rm_fill' : 'cm_fill';
     const tipo = document.getElementById(mode === 'reenviar' ? 'rm_tipo' : 'cm_tipo').value;
     const prog = document.getElementById(mode === 'reenviar' ? 'rm_programa' : 'cm_programa').value;
     const rows = document.getElementById(tbodyId).querySelectorAll('tr');
