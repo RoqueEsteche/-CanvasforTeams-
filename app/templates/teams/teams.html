@@ -458,31 +458,30 @@ function deleteTeam(id, name) {
 }
 
 function openExcelMembers() {
-  showModal('Añadir miembros a Teams desde Excel', `
-    <p class="text-muted small">Columnas requeridas: <code>team_id, user_id</code> — Opcional: <code>role</code> (member/owner)</p>
-    <div class="drop-zone" id="dz"><i class="bi bi-file-earmark-excel-fill mb-2"></i><br>Arrastra tu Excel aquí o haz clic para seleccionar</div>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" class="d-none">
-    <div id="previewArea" class="mt-3"></div>
-    <div id="resultArea" class="mt-3"></div>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-     <button class="btn btn-primary" id="uploadBtn" onclick="doUploadMembers()"><i class="bi bi-upload me-1"></i>Importar</button>`);
-  initDropZone('dz', 'excelFile', file => {
-    readExcel(file, rows => {
-      document.getElementById('previewArea').innerHTML =
-        `<div class="alert alert-info py-2 small">${rows.length} filas detectadas. Primeras 3: <code>${JSON.stringify(rows.slice(0,3))}</code></div>`;
-    });
+  showSpreadsheet({
+    title: 'Añadir miembros a Teams masivamente',
+    columns: [
+      { key: 'team_id', label: 'ID Team', required: true, width: 220 },
+      { key: 'user_id', label: 'ID Usuario (Email/UPN)', required: true, width: 220 },
+      { key: 'role', label: 'Rol', required: false, width: 100,
+        options: [
+          { value: 'member', label: 'Miembro' },
+          { value: 'owner', label: 'Owner' }
+        ] }
+    ],
+    onImport: async (rows) => {
+      const result = { succeeded: [], failed: [] };
+      for (const m of rows) {
+        try {
+          const res = await api.post(`/teams/teams/${m.team_id}/members`, { user_id: m.user_id, role: m.role || 'member' });
+          result.succeeded.push(res);
+        } catch(e) {
+          result.failed.push({ input: { team_id: m.team_id, user_id: m.user_id }, error: e.message });
+        }
+      }
+      return result;
+    }
   });
-}
-
-async function doUploadMembers() {
-  const btn = document.getElementById('uploadBtn');
-  setLoading(btn, true);
-  try {
-    const res = await uploadExcel('/excel/teams/members', 'excelFile');
-    document.getElementById('resultArea').innerHTML = renderBulkResult(res);
-    toast(`Importación: ${res.succeeded.length} ok, ${res.failed.length} errores`, res.failed.length ? 'warning' : 'success');
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
 }
 
 loadTeams();

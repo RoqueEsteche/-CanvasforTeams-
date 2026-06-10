@@ -16,11 +16,11 @@
   /* Layout */
   --sidebar-w: 224px;
   --topbar-h: 56px;
-  --radius: 6px;
-  --radius-sm: 4px;
-  --radius-lg: 8px;
-  --shadow: 0 1px 4px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.13);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,.06), 0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-md: 0 10px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.08);
 
   /* Sidebar (Canvas dark slate) */
   --sidebar-bg: #394B58;
@@ -60,22 +60,22 @@
 
 /* ── 2. Dark mode ── */
 html.dark-mode {
-  --sidebar-bg: #1C2A34;
-  --sidebar-border: rgba(255,255,255,.06);
-  --topbar-bg: #1A2530;
-  --topbar-border: #273543;
-  --body-bg: #101820;
-  --card-bg: #172130;
-  --card-border: #253545;
-  --text-primary: #E8EFF4;
-  --text-muted: #8BA5B5;
-  --text-light: #5A7585;
-  --text-inverse: #E8EFF4;
-  --input-bg: #131E2A;
-  --input-border: #253545;
-  --table-hover-bg: #1D2D3C;
-  --header-bg: #152030;
-  --accent-light: rgba(7,112,163,.12);
+  --sidebar-bg: #0B0F19;
+  --sidebar-border: rgba(255,255,255,.04);
+  --topbar-bg: rgba(11, 15, 25, 0.85);
+  --topbar-border: #182235;
+  --body-bg: #070A11;
+  --card-bg: #111827;
+  --card-border: #1F2937;
+  --text-primary: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --text-light: #6B7280;
+  --text-inverse: #F9FAFB;
+  --input-bg: #0B0F19;
+  --input-border: #374151;
+  --table-hover-bg: #1F2937;
+  --header-bg: #111827;
+  --accent-light: rgba(7,112,163,.15);
 
   --bs-body-color: #E8EFF4;
   --bs-body-color-rgb: 232, 239, 244;
@@ -98,22 +98,22 @@ html.dark-mode {
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light-mode) {
-    --sidebar-bg: #1C2A34;
-    --topbar-bg: #1A2530;
-    --topbar-border: #273543;
-    --body-bg: #101820;
-    --card-bg: #172130;
-    --card-border: #253545;
-    --text-primary: #E8EFF4;
-    --text-muted: #8BA5B5;
-    --text-light: #5A7585;
-    --text-inverse: #E8EFF4;
-    --input-bg: #131E2A;
-    --input-border: #253545;
-    --table-hover-bg: #1D2D3C;
-    --header-bg: #152030;
-    --accent-light: rgba(7,112,163,.12);
-    --bs-body-color: #E8EFF4;
+    --sidebar-bg: #0B0F19;
+    --topbar-bg: rgba(11, 15, 25, 0.85);
+    --topbar-border: #182235;
+    --body-bg: #070A11;
+    --card-bg: #111827;
+    --card-border: #1F2937;
+    --text-primary: #F3F4F6;
+    --text-muted: #9CA3AF;
+    --text-light: #6B7280;
+    --text-inverse: #F9FAFB;
+    --input-bg: #0B0F19;
+    --input-border: #374151;
+    --table-hover-bg: #1F2937;
+    --header-bg: #111827;
+    --accent-light: rgba(7,112,163,.15);
+    --bs-body-color: #F3F4F6;
     --bs-body-color-rgb: 232, 239, 244;
     --bs-secondary-color: #8BA5B5;
     --bs-body-bg: #101820;
@@ -136,9 +136,9 @@ body {
   margin: 0;
   background: var(--body-bg);
   color: var(--text-primary);
-  font-family: 'Lato', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: .9rem;
-  transition: background .25s, color .25s;
+  font-family: 'Outfit', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: .95rem;
+  transition: background .3s cubic-bezier(0.4, 0, 0.2, 1), color .3s;
 }
 
 /* ── 4. Sidebar ── */
@@ -238,14 +238,17 @@ html:not(.dark-mode) .sidebar-brand-logo { filter: brightness(0) invert(1); }
 /* ── 6. Topbar ── */
 .topbar {
   height: var(--topbar-h);
-  background: var(--topbar-bg);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--topbar-border);
   display: flex; align-items: center;
   padding: 0 20px;
   position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,.03);
   gap: 8px;
 }
+html.dark-mode .topbar { background: var(--topbar-bg); }
 .topbar-breadcrumb {
   font-size: .8rem; font-weight: 500;
   color: var(--text-muted); white-space: nowrap;
@@ -296,11 +299,11 @@ html:not(.dark-mode) .sidebar-brand-logo { filter: brightness(0) invert(1); }
   overflow: hidden;
   display: flex; flex-direction: column;
   height: 100%;
-  transition: box-shadow .2s, transform .18s;
+  transition: box-shadow .25s cubic-bezier(0.4, 0, 0.2, 1), transform .25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .canvas-tile:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.01);
 }
 
 .canvas-tile-header {
@@ -382,9 +385,9 @@ html.dark-mode .canvas-tile-footer .tile-link { color: #5BBDE8; }
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   color: var(--text-primary);
-  transition: transform .18s, box-shadow .18s;
+  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
 .stat-card .icon-box {
   width: 44px; height: 44px; border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
@@ -488,7 +491,7 @@ html.dark-mode .canvas-tile-footer .tile-link { color: #5BBDE8; }
 }
 .quick-action:hover {
   border-color: var(--canvas-blue); background: var(--accent-light);
-  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(7,112,163,.14);
+  transform: translateY(-4px) scale(1.02); box-shadow: 0 8px 16px rgba(7,112,163,.14);
   color: var(--canvas-blue);
 }
 .quick-action i    { font-size: 1.55rem; margin-bottom: .4rem; }
@@ -668,11 +671,11 @@ html.dark-mode .table td.td-name  { color: #5BBDE8 !important; }
   background: var(--card-bg); border: 1px solid var(--card-border);
   border-radius: var(--radius-lg); padding: 22px;
   text-align: center; cursor: pointer;
-  transition: transform .18s, box-shadow .18s, border-color .18s;
+  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .25s cubic-bezier(0.4, 0, 0.2, 1), border-color .25s;
   height: 100%;
 }
 .feature-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-5px) scale(1.01);
   box-shadow: var(--shadow-md);
   border-color: var(--canvas-blue);
   color: inherit;

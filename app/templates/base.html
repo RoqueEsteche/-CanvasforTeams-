@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}USIL – Gestión TI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="/static/css/style.css?v=20" rel="stylesheet">
+  <link href="/static/css/style.css?v=21" rel="stylesheet">
 </head>
 <body>
 
@@ -25,6 +28,18 @@
     <i class="bi bi-speedometer2"></i><span>Dashboard</span>
   </a>
 
+  <!-- Gestión Unificada -->
+  <div class="sidebar-section">Gestión Unificada</div>
+  <a href="/ui/unified-users"       class="sidebar-link {% block nav_uu %}{% endblock %}">
+    <i class="bi bi-search"></i><span>Búsqueda Unificada</span>
+  </a>
+  <a href="/ui/unified-creation"    class="sidebar-link {% block nav_uc %}{% endblock %}">
+    <i class="bi bi-folder-plus"></i><span>Creación Unificada</span>
+  </a>
+  <a href="/ui/unified-enrollments" class="sidebar-link {% block nav_ue %}{% endblock %}">
+    <i class="bi bi-person-plus-fill"></i><span>Matriculación Unificada</span>
+  </a>
+
   <!-- Canvas LMS -->
   <div class="sidebar-section">Canvas LMS</div>
   <a href="/ui/canvas/users"       class="sidebar-link {% block nav_cu %}{% endblock %}">
@@ -39,9 +54,6 @@
   <a href="/ui/canvas/enrollments" class="sidebar-link {% block nav_ce %}{% endblock %}">
     <i class="bi bi-pencil-square"></i><span>Matrículas</span>
   </a>
-  <a href="/ui/canvas/groups" class="sidebar-link {% block nav_cg %}{% endblock %}">
-    <i class="bi bi-collection-fill"></i><span>Grupos</span>
-  </a>
 
   <!-- Microsoft Teams -->
   <div class="sidebar-section">Microsoft Teams</div>
@@ -54,9 +66,6 @@
 
   <!-- Herramientas -->
   <div class="sidebar-section">Herramientas</div>
-  <a href="/ui/sync"               class="sidebar-link {% block nav_sy %}{% endblock %}">
-    <i class="bi bi-arrow-left-right"></i><span>Sincronización</span>
-  </a>
   <a href="/ui/ingreso" target="_self" class="sidebar-link {% block nav_ni %}{% endblock %}">
     <i class="bi bi-person-fill-add"></i><span>Nuevo Ingreso</span>
   </a>
@@ -94,17 +103,6 @@
       <span class="topbar-breadcrumb">{% block breadcrumb %}{% endblock %}</span>
     </nav>
 
-    <!-- Búsqueda global -->
-    <div id="gsearch-wrap" class="mx-3 d-none d-lg-block">
-      <label for="gsearch-input" class="visually-hidden">Búsqueda global</label>
-      <i class="bi bi-search" id="gsearch-icon" aria-hidden="true"></i>
-      <input type="search" id="gsearch-input"
-             placeholder="Buscar usuarios, cursos…" autocomplete="off"
-             title="Búsqueda global"
-             oninput="onGlobalSearch(this.value)"
-             onblur="setTimeout(()=>document.getElementById('gsearch-results').style.display='none',200)">
-      <div id="gsearch-results" role="listbox" aria-label="Resultados de búsqueda"></div>
-    </div>
 
     <div class="topbar-right ms-auto">
       <!-- Theme toggle -->
@@ -229,9 +227,44 @@
   <span id="err-badge-count">0</span>
 </button>
 
+<!-- Toasts Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1060">
+  <div id="globalToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="globalToastBody">
+        Mensaje de sistema
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Command Palette (Ctrl+K) -->
+<div class="modal fade" id="commandPaletteModal" tabindex="-1" aria-labelledby="commandPaletteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="background: var(--card-bg); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--card-border); box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+      <div class="modal-header border-0 p-3 pb-0">
+        <div class="input-group input-group-lg">
+          <span class="input-group-text bg-transparent border-0 text-muted"><i class="bi bi-search fs-4"></i></span>
+          <input type="text" class="form-control border-0 shadow-none bg-transparent text-primary fs-4" id="cmdPaletteInput" placeholder="Busca en Unified Users..." autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-body p-0">
+        <div class="list-group list-group-flush" id="cmdPaletteResults" style="max-height: 400px; overflow-y: auto;">
+          <!-- Results injected via JS -->
+        </div>
+      </div>
+      <div class="modal-footer border-top-0 pt-0 text-muted small px-3">
+        <span><kbd>Enter</kbd> seleccionar</span>
+        <span class="ms-3"><kbd>Esc</kbd> cerrar</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="/static/js/main.js?v=4"></script>
+<script src="/static/js/main.js?v=5"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

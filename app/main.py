@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +33,7 @@ from app.routers import (
     sync,
     web,
 )
+import asyncio
 from app.routers.teams import teams_mgmt, users as teams_users
 
 # Setup paths
@@ -40,11 +42,26 @@ STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 
+# Initialize databases on startup
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from app.core.database import init_db
+    from app.core.audit_log import init_audit_db
+    from app.core.jobs import init_jobs_db
+    try:
+        await init_db()
+        await asyncio.to_thread(init_audit_db)
+        await asyncio.to_thread(init_jobs_db)
+    except Exception as e:
+        logger.error(f"Failed to initialize databases: {e}")
+    yield
+
 # Create FastAPI app
 app = FastAPI(
     title="Canvas for Teams API",
     description="Integration between Canvas LMS and Microsoft Teams",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -145,7 +162,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=settings.port,
         reload=settings.environment == "development",
     )

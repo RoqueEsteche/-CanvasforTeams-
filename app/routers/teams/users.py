@@ -1,4 +1,4 @@
-﻿"""Microsoft Teams / Azure AD user management endpoints."""
+"""Microsoft Teams / Azure AD user management endpoints."""
 import asyncio
 from typing import Annotated
 
@@ -86,7 +86,7 @@ async def create_user(body: TeamsUserCreate):
         sku = settings.azure_sku_teachers if body.role == "teacher" else settings.azure_sku_students
         await graph.assign_license(data["id"], sku)
         await database.upsert_azure_users([data])
-        cache.invalidate("teams:users:")
+        cache.patch_list("teams:users:", data.get("id"), data, id_field="id", action="create")
         return data
     except StarletteHTTPException:
         raise
@@ -150,7 +150,9 @@ async def update_user(user_id: str, body: TeamsUserUpdate):
     }
     payload = {mapping[k]: v for k, v in fields.items() if k in mapping}
     try:
-        return await graph.patch(f"/users/{user_id}", payload)
+        data = await graph.patch(f"/users/{user_id}", payload)
+        cache.patch_list("teams:users:", user_id, payload, id_field="id", action="update")
+        return data
     except StarletteHTTPException:
         raise
     except Exception as exc:
@@ -184,7 +186,7 @@ async def delete_user(user_id: str):
     try:
         await graph.delete(f"/users/{user_id}")
         await database.delete_azure_user(user_id)
-        cache.invalidate("teams:users:")
+        cache.patch_list("teams:users:", user_id, None, id_field="id", action="delete")
         return {"deleted": user_id}
     except StarletteHTTPException:
         raise

@@ -30,7 +30,7 @@ from app.models.canvas import BulkResult
 from app.services import canvas_client as canvas
 from app.services import teams_client as graph
 from app.services.credential_generator import generate_credentials
-from app.services.email_service import send_welcome_email
+from app.services.email_service import send_welcome_email, get_program_attachments
 
 router = APIRouter(prefix="/ingreso", tags=["Nuevo Ingreso"])
 _ACCOUNT = settings.canvas_account_id
@@ -55,6 +55,7 @@ class StudentIn(BaseModel):
     program_name: str = ""
     send_email: bool = True
     cc: list[str] = []
+    courses: list[str] = []
 
     @field_validator("full_name")
     @classmethod
@@ -203,21 +204,12 @@ def _err(exc: Exception) -> str:
 def _resolve_login(creds: dict, role: str) -> tuple[str, str]:
     """Devuelve (canvas_login_id, canvas_sis_user_id).
 
-    Tanto estudiantes como docentes usan el email institucional como login_id
-    para autenticarse con su email y contraseña en Canvas y Teams.
-    El SIS user ID es siempre la cédula para trazabilidad institucional.
+    Tanto estudiantes como docentes usan el email institucional como login_id.
+    El SIS user ID es la cédula para estudiantes, y el email para docentes.
     """
+    if role == "teacher":
+        return creds["email"], creds["email"]
     return creds["email"], creds["cedula"]
-
-
-def _get_pdf_attachments() -> list[str]:
-    """Devuelve la lista de rutas de PDFs instructivos para diplomados."""
-    template_dir = Path(__file__).parent.parent / "static" / "templates"
-    pdf_files = [
-        template_dir / "2° Acceso a la Plataforma Teams- Instructivo.pdf",
-        template_dir / "3° Descargar grabacion en TEAMS - Instructivo.pdf",
-    ]
-    return [str(f) for f in pdf_files if f.exists()]
 
 
 async def _canvas_user_exists(cedula: str, login_id: str) -> tuple[bool, dict]:
@@ -335,20 +327,62 @@ async def _check_account(body: AccountCheckIn) -> dict[str, Any]:
     return result
 
 
+async def _generate_unique_credentials(full_name: str, cedula: str, platform: str) -> dict:
+    creds = generate_credentials(full_name, cedula, settings.institutional_domain)
+    
+    # 1. Verificar si ya existe por cédula (no cambiar correo si es el mismo usuario)
+    try:
+        if platform in ("canvas", "both"):
+            exists, info = await _canvas_user_exists(cedula, creds["email"])
+            if exists and info.get("found_by") == "cedula":
+                return creds
+    except Exception:
+        pass
+
+    login_id = creds["email"]
+    email_taken = False
+    
+    # 2. Verificar colisión de correo en Teams
+    if platform in ("teams", "both"):
+        try:
+            exists_teams, _ = await _teams_user_exists(login_id)
+            if exists_teams: email_taken = True
+        except Exception:
+            pass
+            
+    # 3. Verificar colisión de correo en Canvas
+    if platform in ("canvas", "both") and not email_taken:
+        try:
+            exists_canvas, info = await _canvas_user_exists(cedula, login_id)
+            if exists_canvas and info.get("found_by") == "login_id":
+                email_taken = True
+        except Exception:
+            pass
+            
+    if not email_taken:
+        return creds
+        
+    # Colisión detectada: Agregar inicial del segundo apellido (si existe)
+    parts = full_name.strip().split()
+    suffix = parts[-1][0].lower() if len(parts) >= 3 and parts[-1] else "x"
+    return generate_credentials(full_name, cedula, settings.institutional_domain, collision_suffix=suffix)
+
+
 async def _create_student(student: StudentIn) -> dict[str, Any]:
     """Crea un usuario en Canvas y/o Teams según la plataforma indicada.
 
     Flujo:
-    1. Genera credenciales institucionales.
+    1. Genera credenciales institucionales únicas (manejando colisiones).
     2. Pre-verifica existencia antes de intentar crear (evita duplicados).
     3. Crea en Canvas si platform in ('canvas', 'both').
     4. Crea en Teams/Azure AD si platform in ('teams', 'both').
     5. Envía email de bienvenida si send_email=True.
+    6. Matricula en los cursos de Canvas si se proveyeron en `courses`.
 
     Returns:
         Diccionario con estado de cada plataforma y las credenciales generadas.
     """
-    creds = generate_credentials(student.full_name, student.cedula, settings.institutional_domain)
+    creds = await _generate_unique_credentials(student.full_name, student.cedula, student.platform)
     login_id, sis_user_id = _resolve_login(creds, student.role)
     results: dict[str, Any] = {
         "student": student.full_name,
@@ -447,7 +481,7 @@ async def _create_student(student: StudentIn) -> dict[str, Any]:
     # ── Email ─────────────────────────────────────────────────
     if student.send_email:
         try:
-            attachments = _get_pdf_attachments() if student.program_type == "diplomado" else []
+            attachments = get_program_attachments(student.program_type)
             await send_welcome_email(
                 to_email=student.personal_email,
                 full_name=creds["full_name"],
@@ -463,6 +497,28 @@ async def _create_student(student: StudentIn) -> dict[str, Any]:
             results["email"] = "sent"
         except Exception as exc:
             results["email"] = f"error: {_err(exc)}"
+
+    # ── Canvas Enrollments ──────────────────────────────────────
+    if student.courses and results.get("canvas", {}).get("status") in ("ok", "exists"):
+        canvas_id = results["canvas"].get("id") or results["canvas"].get("existing", {}).get("canvas_id")
+        if canvas_id:
+            results["canvas_enrollments"] = []
+            for course_id in student.courses:
+                try:
+                    await canvas.post(
+                        f"/courses/{course_id}/enrollments",
+                        {
+                            "enrollment": {
+                                "user_id": canvas_id,
+                                "type": "StudentEnrollment" if student.role == "student" else "TeacherEnrollment",
+                                "enrollment_state": "active",
+                                "notify": False
+                            }
+                        }
+                    )
+                    results["canvas_enrollments"].append({"course_id": course_id, "status": "success"})
+                except Exception as exc:
+                    results["canvas_enrollments"].append({"course_id": course_id, "status": "error", "error": _err(exc)})
 
     return results
 
@@ -487,7 +543,7 @@ async def _resend_credentials(body: ResendCredentialsIn) -> dict[str, Any]:
     }
 
     try:
-        attachments = _get_pdf_attachments() if body.program_type == "diplomado" else []
+        attachments = get_program_attachments(body.program_type)
         await send_welcome_email(
             to_email=body.personal_email,
             full_name=creds["full_name"],
@@ -509,10 +565,25 @@ async def _resend_credentials(body: ResendCredentialsIn) -> dict[str, Any]:
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
+@router.get("/courses", summary="Obtener cursos activos de Canvas")
+async def get_courses(search: str = ""):
+    """Busca cursos en Canvas para la selección de materias."""
+    try:
+        params = {"published": True, "per_page": 50}
+        if search:
+            params["search_term"] = search
+        courses = await canvas.get(f"/accounts/{_ACCOUNT}/courses", params)
+        if isinstance(courses, list):
+            return [{"id": str(c["id"]), "name": c["name"]} for c in courses if "name" in c]
+        return []
+    except Exception:
+        return []
+
+
 @router.post("/preview", response_model=CredentialPreview, summary="Previsualizar credenciales")
 async def preview_credentials(body: StudentIn):
     """Genera y muestra las credenciales que se asignarían al usuario, sin crear nada."""
-    creds = generate_credentials(body.full_name, body.cedula, settings.institutional_domain)
+    creds = await _generate_unique_credentials(body.full_name, body.cedula, body.platform)
     login_id, _ = _resolve_login(creds, body.role)
     return CredentialPreview(
         full_name=body.full_name,

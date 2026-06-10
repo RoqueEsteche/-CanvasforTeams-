@@ -1,4 +1,4 @@
-﻿"""Canvas course management endpoints."""
+"""Canvas course management endpoints."""
 import asyncio
 import logging
 from typing import Annotated
@@ -52,8 +52,10 @@ async def _fetch_all_courses(search_term: str | None = None) -> list:
         }
         if search_term:
             params["search_term"] = search_term
-
-        result = await canvas.paginate(f"/accounts/{_ACCOUNT}/courses", params)
+            result = await canvas.paginate_limited(f"/accounts/{_ACCOUNT}/courses", params, max_records=100)
+        else:
+            result = await canvas.paginate(f"/accounts/{_ACCOUNT}/courses", params)
+            
         await database.upsert_courses(result)
         await database.mark_synced("canvas_courses")
         _cache.set(cache_key, result, ttl=_COURSES_STALE_TTL)
@@ -109,7 +111,10 @@ async def create_course(body: CanvasCourseCreate):
     if body.enroll_me:
         payload["enroll_me"] = True
     try:
-        return await canvas.post(f"/accounts/{_ACCOUNT}/courses", payload)
+        data = await canvas.post(f"/accounts/{_ACCOUNT}/courses", payload)
+        await database.upsert_courses([data])
+        _cache.patch_list(_CACHE_KEY, data.get("id"), data, id_field="id", action="create")
+        return data
     except StarletteHTTPException:
         raise
     except Exception as exc:
@@ -144,7 +149,10 @@ async def create_courses_bulk(body: BulkCanvasCourseCreate) -> BulkResult:
 async def update_course(course_id: str, body: CanvasCourseUpdate):
     fields = body.model_dump(exclude_none=True)
     try:
-        return await canvas.put(f"/courses/{course_id}", {"course": fields})
+        data = await canvas.put(f"/courses/{course_id}", {"course": fields})
+        await database.upsert_courses([data])
+        _cache.patch_list(_CACHE_KEY, course_id, data, id_field="id", action="update")
+        return data
     except StarletteHTTPException:
         raise
     except Exception as exc:
@@ -159,7 +167,7 @@ async def delete_course(
     try:
         result = await canvas.delete(f"/courses/{course_id}", {"event": event})
         await database.delete_course(course_id)
-        _cache.invalidate(_CACHE_KEY)
+        _cache.patch_list(_CACHE_KEY, course_id, None, id_field="id", action="delete")
         return result
     except StarletteHTTPException:
         raise

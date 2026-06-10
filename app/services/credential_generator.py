@@ -9,7 +9,7 @@ def _normalize(text: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]", "", ascii_text).lower()
 
 
-def generate_credentials(full_name: str, cedula: str, domain: str) -> dict:
+def generate_credentials(full_name: str, cedula: str, domain: str, collision_suffix: str = "") -> dict:
     """
     Karen Gonzalez + 6868066 →
       email:    karen.gonzalez@usil.edu.py
@@ -22,8 +22,9 @@ def generate_credentials(full_name: str, cedula: str, domain: str) -> dict:
 
     first_norm = _normalize(first) or "user"
     last_norm  = _normalize(last) or "user"
-
-    login_id   = f"{first_norm}.{last_norm}"
+    
+    suffix = _normalize(collision_suffix)
+    login_id   = f"{first_norm}.{last_norm}{suffix}"
     email      = f"{login_id}@{domain}"
 
     first_init = _normalize(first[0])[0].upper() if first and _normalize(first[0]) else "U"

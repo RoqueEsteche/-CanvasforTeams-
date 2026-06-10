@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Matriculación Unificada{% endblock %}
+{% block breadcrumb %}Gestión Unificada › Matriculación Unificada{% endblock %}
+{% block nav_ue %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Matriculación Unificada</div><div class="page-subtitle">Añadir usuarios a Canvas y Teams simultáneamente</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-primary" onclick="openExcelUnifiedEnroll()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
+    <a href="/excel/template/unified-enrollment" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mx-auto" style="max-width: 600px;">
+  <div class="card-header bg-light">
+    <h5 class="card-title mb-0">Matriculación Individual</h5>
+  </div>
+  <div class="card-body">
+    <form id="enrollForm" onsubmit="event.preventDefault(); doEnrollUnified();">
+      <div class="mb-3">
+        <label class="form-label">Identificador de Usuario *</label>
+        <input type="text" class="form-control" name="user_identifier" required placeholder="Email o C.I.">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">ID Curso Canvas *</label>
+        <input type="text" class="form-control" name="canvas_course_id" required placeholder="Ej. 10245">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">ID Equipo Teams *</label>
+        <input type="text" class="form-control" name="teams_team_id" required placeholder="Ej. a1b2c3d4-...">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Rol *</label>
+        <select class="form-select" name="role">
+          <option value="student">Estudiante (Miembro)</option>
+          <option value="teacher">Profesor (Owner)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success w-100" id="enrollBtn">
+        <i class="bi bi-check-lg me-1"></i>Matricular en Ambas Plataformas
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function doEnrollUnified() {
+  const form = document.getElementById('enrollForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  
+  const btn = document.getElementById('enrollBtn');
+  setLoading(btn, true);
+  
+  const fd = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  
+  try {
+    const res = await api.post('/sync/enroll-both', data);
+    toast('Usuario matriculado exitosamente!', 'success');
+    form.reset();
+  } catch(e) {
+    toast('Error: ' + e.message, 'danger');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function openExcelUnifiedEnroll() {
+  showSpreadsheet({
+    title: 'Matriculación masiva en Canvas y Teams',
+    columns: [
+      { key: 'user_identifier', label: 'ID Usuario', required: true, width: 180 },
+      { key: 'canvas_course_id', label: 'ID Curso Canvas', required: true, width: 130 },
+      { key: 'teams_team_id', label: 'ID Equipo Teams', required: true, width: 150 },
+      { key: 'role', label: 'Rol', required: false, width: 130,
+        options: [
+          { value: 'student', label: 'Estudiante' },
+          { value: 'teacher', label: 'Profesor' }
+        ] }
+    ],
+    onImport: async (rows) => {
+      const items = rows.map(r => ({
+        user_identifier: r.user_identifier,
+        canvas_course_id: r.canvas_course_id,
+        teams_team_id: r.teams_team_id,
+        role: r.role || 'student'
+      }));
+      return await api.post('/sync/bulk-enroll-both', { items });
+    }
+  });
+}
+</script>
+{% endblock %}

@@ -1,4 +1,4 @@
-﻿"""Canvas group management endpoints."""
+"""Canvas group management endpoints."""
 import asyncio
 from typing import Annotated
 
@@ -107,6 +107,27 @@ async def add_members(group_id: str, body: CanvasGroupMemberAdd) -> BulkResult:
 
     await asyncio.gather(*[_add(uid) for uid in body.user_ids])
     return result
+
+
+@router.put("/{group_id}", summary="Actualizar grupo en la cuenta")
+async def update_group(group_id: str, body: CanvasGroupCreate):
+    payload = {}
+    if body.name is not None:
+        payload["name"] = body.name
+    if body.description is not None:
+        payload["description"] = body.description
+    if body.is_public is not None:
+        payload["is_public"] = body.is_public
+    if body.join_level is not None:
+        payload["join_level"] = body.join_level
+    if body.sis_group_id is not None:
+        payload["sis_group_id"] = body.sis_group_id
+    try:
+        return await canvas.put(f"/groups/{group_id}", payload)
+    except StarletteHTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/{group_id}/members", summary="Listar miembros del grupo")

@@ -119,6 +119,21 @@ async def jobs_page(request: Request):
     return _r(request, "job_history.html")
 
 
+@router.get("/ui/unified-users", response_class=HTMLResponse)
+async def unified_users_page(request: Request):
+    return _r(request, "unified_users.html")
+
+
+@router.get("/ui/unified-creation", response_class=HTMLResponse)
+async def unified_creation_page(request: Request):
+    return _r(request, "unified_creation.html")
+
+
+@router.get("/ui/unified-enrollments", response_class=HTMLResponse)
+async def unified_enrollments_page(request: Request):
+    return _r(request, "unified_enrollments.html")
+
+
 @router.get("/diagnostics", tags=["Health"])
 async def diagnostics():
     """Test Canvas and Azure credentials and return status for each."""

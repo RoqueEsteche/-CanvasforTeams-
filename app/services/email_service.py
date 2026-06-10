@@ -25,7 +25,7 @@ _TEAMS_URL  = "https://teams.cloud.microsoft/"
 _IT_CONTACT = """
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;font-size:.82rem;color:#4a5568;">
   <tr><td colspan="2" style="font-weight:700;padding-bottom:6px;color:#2d3748;">Contacto – Dpto. IT</td></tr>
-  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:it@usil.edu.py">it@usil.edu.py</a></td></tr>
+  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:it@usil.edu.py">it@usil.edu.py</a> | <a href="mailto:resteche@usil.edu.py">resteche@usil.edu.py</a></td></tr>
   <tr><td style="padding:2px 0;">📱 WhatsApp</td><td style="padding:2px 8px;">+595 991 856 488 | +595 992 298 599</td></tr>
   <tr><td style="padding:2px 0;">☎ Teléfono</td><td style="padding:2px 8px;">+595 21 282 801 | 282 806 | 297 085</td></tr>
   <tr><td style="padding:2px 0;">📍 Dirección</td><td style="padding:2px 8px;">Av. Venezuela Nro. 2087 c/ Av. Artigas – Asunción</td></tr>
@@ -34,12 +34,19 @@ _IT_CONTACT = """
 
 _UBS_CONTACT = """
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;font-size:.82rem;color:#4a5568;">
-  <tr><td colspan="2" style="font-weight:700;padding-bottom:6px;color:#2d3748;">Soporte Técnico – TI</td></tr>
-  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:lflorentin@usil.edu.py">lflorentin@usil.edu.py</a> | <a href="mailto:glezcano@usil.edu.py">glezcano@usil.edu.py</a></td></tr>
-  <tr><td style="padding:2px 0;">📱 WhatsApp</td><td style="padding:2px 8px;">0991 856 488</td></tr>
-  <tr><td style="padding:2px 0;">🕐 Horario</td><td style="padding:2px 8px;">Lunes a viernes, 08:00 – 20:00 hs.</td></tr>
-  <tr><td style="padding:2px 0;">⏱ SLA</td><td style="padding:2px 8px;">Hasta 24 horas hábiles.</td></tr>
+  <tr><td colspan="2" style="padding-bottom:6px;color:#2d3748;">En caso de inconvenientes con el acceso a Teams, puede contactar al área de Tecnología de la Información (TI):</td></tr>
+  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:lflorentin@usil.edu.py">lflorentin@usil.edu.py</a></td></tr>
+  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:glezcano@usil.edu.py">glezcano@usil.edu.py</a></td></tr>
+  <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:resteche@usil.edu.py">resteche@usil.edu.py</a></td></tr>
+  <tr><td style="padding:2px 0;">📱 WhatsApp corporativo</td><td style="padding:2px 8px;">0991 856 488</td></tr>
 </table>
+<p style="color:#4a5568;font-size:.85rem;margin-top:16px;">
+  Quedamos atentos a cualquier consulta relacionada con TI y le deseamos mucho éxito en sus estudios.<br><br>
+  <strong>Área de Tecnología de la Información (TI UBS)</strong><br>
+  USIL Business School – Universidad San Ignacio de Loyola<br>
+  Correo: lflorentin@usil.edu.py | glezcano@usil.edu.py | resteche@usil.edu.py<br>
+  WhatsApp corporativo: 0991 856 488
+</p>
 """
 
 
@@ -194,8 +201,7 @@ def _html_diplomado(full_name: str, usuario: str, contrasena: str,
     {_warning_box("Le recomendamos cambiar su contraseña la primera vez que ingrese a la plataforma.")}
 
     <p style="color:#4a5568;font-size:.85rem;margin-top:12px;">
-      Adjunto encontrará los instructivos de acceso a Teams.
-      Le deseamos mucho éxito en sus estudios.
+      Adjunto encontrará los instructivos de Teams.
     </p>
 
     {_UBS_CONTACT}
@@ -206,6 +212,32 @@ def _html_diplomado(full_name: str, usuario: str, contrasena: str,
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
+def get_program_attachments(program_type: str) -> list[str]:
+    """Escanea dinámicamente la carpeta de adjuntos según el tipo de programa."""
+    base_dir = Path(__file__).parent.parent.parent / "Archivos para los correos"
+    if not base_dir.exists():
+        return []
+        
+    mapping = {
+        "diplomado": "Diplomados (UBS - USIL Business School)",
+        "mba": "MBA",
+        "grado": "Grado"
+    }
+    
+    target_folder = mapping.get(program_type)
+    if not target_folder:
+        return []
+        
+    target_dir = base_dir / target_folder
+    if not target_dir.exists():
+        return []
+        
+    files = []
+    for f in target_dir.iterdir():
+        if f.is_file():
+            files.append(str(f))
+    return files
 
 async def send_welcome_email(
     to_email: str,
@@ -267,8 +299,8 @@ async def send_welcome_email(
             {"emailAddress": {"address": addr}} for addr in cc_addresses
         ]
 
-    # Add attachments for diplomado if provided
-    if attachments and program_type == "diplomado":
+    # Add attachments if provided
+    if attachments:
         message["attachments"] = []
         for file_path in attachments:
             try:

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Creación Unificada{% endblock %}
+{% block breadcrumb %}Gestión Unificada › Creación Unificada{% endblock %}
+{% block nav_uc %}active{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+  <div><div class="page-title">Creación Unificada</div><div class="page-subtitle">Crear cursos en Canvas y equipos en Teams simultáneamente</div></div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-primary" onclick="openExcelUnifiedCreation()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
+    <a href="/excel/template/unified-creation" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Plantilla Excel</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mx-auto" style="max-width: 600px;">
+  <div class="card-header bg-light">
+    <h5 class="card-title mb-0">Creación Individual</h5>
+  </div>
+  <div class="card-body">
+    <form id="creationForm" onsubmit="event.preventDefault(); doCreateUnified();">
+      <div class="mb-3">
+        <label class="form-label">Nombre del Curso/Equipo *</label>
+        <input type="text" class="form-control" name="course_name" required placeholder="Ej. Matemáticas I - 2026">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Código del Curso / Descripción *</label>
+        <input type="text" class="form-control" name="course_code" required placeholder="Ej. MAT-101">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Identificador del Propietario (Docente) *</label>
+        <input type="text" class="form-control" name="owner_identifier" required placeholder="Email o C.I.">
+        <div class="form-text">Será añadido como 'Teacher' en Canvas y 'Owner' en Teams.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Plantilla Teams</label>
+        <select class="form-select" name="template">
+          <option value="educationClass">Clase educativa</option>
+          <option value="standard">Estándar</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success w-100" id="createBtn">
+        <i class="bi bi-check-lg me-1"></i>Crear en Ambas Plataformas
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function doCreateUnified() {
+  const form = document.getElementById('creationForm');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  
+  const btn = document.getElementById('createBtn');
+  setLoading(btn, true);
+  
+  const fd = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  
+  try {
+    const res = await api.post('/sync/create-course-and-team', data);
+    toast('Curso y Equipo creados exitosamente!', 'success');
+    showModal('Resultado de Creación', `
+      <div class="alert alert-success">
+        <p><strong>Canvas Course ID:</strong> ${res.canvas_course_id}</p>
+        <p><strong>Teams Team ID:</strong> ${res.teams_team_id}</p>
+      </div>
+    `, `<button class="btn btn-primary" data-bs-dismiss="modal">Cerrar</button>`);
+    form.reset();
+  } catch(e) {
+    toast('Error: ' + e.message, 'danger');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function openExcelUnifiedCreation() {
+  showSpreadsheet({
+    title: 'Creación masiva de Cursos y Equipos',
+    columns: [
+      { key: 'course_name', label: 'Nombre del Curso', required: true, width: 200 },
+      { key: 'course_code', label: 'Código del Curso', required: true, width: 150 },
+      { key: 'owner_identifier', label: 'ID Propietario', required: true, width: 180 },
+      { key: 'template', label: 'Plantilla Teams', required: false, width: 130,
+        options: [
+          { value: 'educationClass', label: 'Educación' },
+          { value: 'standard', label: 'Estándar' }
+        ] }
+    ],
+    onImport: async (rows) => {
+      const items = rows.map(r => ({
+        course_name: r.course_name,
+        course_code: r.course_code,
+        owner_identifier: r.owner_identifier,
+        template: r.template || 'educationClass'
+      }));
+      return await api.post('/sync/bulk-create-courses-and-teams', { items });
+    }
+  });
+}
+</script>
+{% endblock %}

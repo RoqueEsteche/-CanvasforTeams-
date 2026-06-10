@@ -74,6 +74,27 @@ def invalidate(prefix: str) -> None:
             del _STORE[k]
 
 
+def patch_list(prefix: str, item_id: Any, item_data: dict | None, id_field: str = "id", action: str = "update") -> None:
+    """
+    Optimistically patches all cached lists starting with `prefix`.
+    action: 'create', 'update', or 'delete'.
+    """
+    for k, (ts, value) in _STORE.items():
+        if k.startswith(prefix) and isinstance(value, list):
+            if action == "delete":
+                _STORE[k] = (ts, [v for v in value if str(v.get(id_field, "")) != str(item_id)])
+            elif action == "update" and item_data is not None:
+                new_list = []
+                for v in value:
+                    if str(v.get(id_field, "")) == str(item_id):
+                        v.update(item_data)
+                    new_list.append(v)
+                _STORE[k] = (ts, new_list)
+            elif action == "create" and item_data is not None:
+                # Insert at the top of the cached list
+                _STORE[k] = (ts, [item_data] + value)
+
+
 def clear_all() -> int:
     n = len(_STORE)
     _STORE.clear()

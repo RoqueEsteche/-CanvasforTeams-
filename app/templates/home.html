@@ -181,6 +181,25 @@
 
   </div>
 
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="table-card p-3 h-100">
+        <h5 class="mb-3"><i class="bi bi-clock-history text-canvas-blue me-2"></i>Cursos Recientes (Canvas)</h5>
+        <div id="recentCoursesWrap">
+          <div class="text-center py-3"><span class="spinner-border spinner-border-sm text-secondary"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="table-card p-3 h-100">
+        <h5 class="mb-3"><i class="bi bi-microsoft-teams text-canvas-blue me-2"></i>Teams Recientes (Azure)</h5>
+        <div id="recentTeamsWrap">
+          <div class="text-center py-3"><span class="spinner-border spinner-border-sm text-secondary"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- System info -->
   <div class="table-card p-4">
     <div class="row align-items-center g-3">
@@ -229,4 +248,61 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadRecentActivity() {
+  try {
+    // Fetch and sort Canvas Courses by created_at (descending)
+    api.get('/canvas/courses?per_page=100').then(courses => {
+      // Filtrar y ordenar cursos por fecha de creación descendente
+      courses.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      const recent = courses.slice(0, 5);
+      
+      const html = recent.length === 0 ? '<p class="text-muted small">No hay cursos recientes.</p>' : 
+        `<div class="list-group list-group-flush">
+          ${recent.map(c => `
+            <a href="/ui/canvas/courses" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+              <div class="text-truncate">
+                <div class="fw-semibold small">${c.name}</div>
+                <div class="text-muted" style="font-size:0.75rem">${c.course_code || '—'}</div>
+              </div>
+              <span class="badge bg-light text-dark border ms-2">${c.workflow_state}</span>
+            </a>
+          `).join('')}
+        </div>`;
+      document.getElementById('recentCoursesWrap').innerHTML = html;
+    }).catch(e => {
+      document.getElementById('recentCoursesWrap').innerHTML = `<p class="text-danger small"><i class="bi bi-exclamation-triangle"></i> Error: ${e.message}</p>`;
+    });
+
+    // Fetch and sort Teams by createdDateTime (descending)
+    api.get('/teams/teams?top=100').then(teams => {
+      // Filtrar y ordenar equipos por fecha de creación descendente
+      teams.sort((a, b) => new Date(b.createdDateTime || 0) - new Date(a.createdDateTime || 0));
+      const recent = teams.slice(0, 5);
+      
+      const html = recent.length === 0 ? '<p class="text-muted small">No hay Teams recientes.</p>' : 
+        `<div class="list-group list-group-flush">
+          ${recent.map(t => `
+            <a href="/ui/teams/teams" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+              <div class="text-truncate">
+                <div class="fw-semibold small">${t.displayName}</div>
+                <div class="text-muted" style="font-size:0.75rem">${t.visibility || '—'}</div>
+              </div>
+            </a>
+          `).join('')}
+        </div>`;
+      document.getElementById('recentTeamsWrap').innerHTML = html;
+    }).catch(e => {
+      document.getElementById('recentTeamsWrap').innerHTML = `<p class="text-danger small"><i class="bi bi-exclamation-triangle"></i> Error: ${e.message}</p>`;
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadRecentActivity);
+</script>
 {% endblock %}

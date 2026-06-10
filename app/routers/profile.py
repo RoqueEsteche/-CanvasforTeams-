@@ -20,19 +20,37 @@ def get_current_user(request: Request) -> dict:
     return user
 
 
-async def _find_canvas_user(email: str) -> dict | None:
-    if not email:
+async def _find_canvas_user(identifier: str) -> dict | None:
+    if not identifier:
         return None
+    
+    identifier = identifier.strip()
+    
+    # Si es numérico (C.I.), busca al usuario usando sis_user_id:{cedula}
+    if identifier.replace("-", "").replace(".", "").isdigit():
+        try:
+            return await canvas.get(f"/users/sis_user_id:{identifier}")
+        except Exception:
+            pass
+
+    # Si contiene @ o es texto, intentamos buscar por sis_user_id:{email} primero
+    if "@" in identifier:
+        try:
+            return await canvas.get(f"/users/sis_user_id:{identifier}")
+        except Exception:
+            pass
+
     try:
-        users = await canvas.paginate(f"/accounts/{_ACCOUNT}/users", {"search_term": email, "per_page": 100})
+        users = await canvas.paginate(f"/accounts/{_ACCOUNT}/users", {"search_term": identifier, "per_page": 100})
     except Exception:
         return None
-    local = email.split("@")[0] if "@" in email else email
+        
+    local = identifier.split("@")[0] if "@" in identifier else identifier
     # Priority: exact match on login_id or email fields first
     for user in users:
-        if (user.get("login_id") == email
-                or user.get("email") == email
-                or user.get("sis_user_id") == email
+        if (user.get("login_id") == identifier
+                or user.get("email") == identifier
+                or user.get("sis_user_id") == identifier
                 or user.get("login_id") == local):
             return user
     return users[0] if users else None
@@ -64,6 +82,7 @@ async def _canvas_enrollments(uid: str) -> tuple[list, list]:
     for e in raw:
         course = courses.get(str(e.get("course_id")), {})
         enriched.append({
+            "id":              e.get("id"),
             "course_id":       e.get("course_id"),
             "course_name":     course.get("name") or e.get("course_name") or "Sin nombre",
             "course_code":     course.get("course_code") or e.get("course_code"),
@@ -218,13 +237,14 @@ async def teams_profile(current_user: dict = Depends(get_current_user)):
 
 @router.get("/lookup", summary="Ver perfil completo de cualquier usuario")
 async def lookup_user_profile(
-    email: Annotated[str | None, Query(description="Email o login del usuario")] = None,
+    email: Annotated[str | None, Query(description="Email, login o C.I. del usuario")] = None,
     canvas_id: Annotated[str | None, Query(description="ID Canvas del usuario")] = None,
 ):
     if not email and not canvas_id:
-        raise HTTPException(status_code=400, detail="Especificá email o canvas_id")
+        raise HTTPException(status_code=400, detail="Especificá email (o C.I.) o canvas_id")
 
     result: dict[str, Any] = {}
+    identifier = email
 
     # ── Canvas ────────────────────────────────────────────────────────────────
     canvas_user = None
@@ -233,18 +253,18 @@ async def lookup_user_profile(
             canvas_user = await canvas.get(f"/users/{canvas_id}/profile")
         except Exception:
             pass
-    if canvas_user is None and email:
-        canvas_user = await _find_canvas_user(email)
+    if canvas_user is None and identifier:
+        canvas_user = await _find_canvas_user(identifier)
 
     if canvas_user:
         uid = str(canvas_user.get("id"))
         enrollments, groups = await _canvas_enrollments(uid)
         # Derive email for Teams lookup — prefer any field that looks like an email
-        if not email:
+        if not identifier or "@" not in identifier:
             for _field in ("primary_email", "email", "login_id", "sis_user_id"):
                 _val = canvas_user.get(_field) or ""
                 if "@" in _val:
-                    email = _val
+                    identifier = _val
                     break
         result["canvas"] = {
             "user": {
@@ -263,8 +283,9 @@ async def lookup_user_profile(
         result["canvas"] = None
 
     # ── Teams ─────────────────────────────────────────────────────────────────
-    if email:
-        az_user = await _find_graph_user(email)
+    teams_email = identifier if identifier and "@" in identifier else None
+    if teams_email:
+        az_user = await _find_graph_user(teams_email)
         if az_user:
             teams_list = await _teams_with_channels(az_user["id"])
             result["teams"] = {

@@ -46,7 +46,7 @@ function _renderCanvasUsersPage(users) {
     <table class="table table-sm table-hover mb-0" style="cursor:pointer">
       <thead>
         <tr>
-          <th style="width:30px"></th>
+          <th style="width:30px"><input type="checkbox" class="form-check-input" onclick="toggleSelectAll('tableWrap', this.checked)"></th>
           <th>ID</th>
           <th>Nombre</th>
           <th>Email</th>
@@ -60,7 +60,7 @@ function _renderCanvasUsersPage(users) {
           <tr class="cu-row" data-id="${esc(String(row.id))}"
               data-email="${esc(row.email||row.login_id||'')}"
               data-name="${esc(row.name||'')}">
-            <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation(); toggleRowSelection(event, this)"></td>
+            <td><input type="checkbox" class="form-check-input row-sel" data-cid="tableWrap" data-rid="${esc(String(row.id))}" onclick="event.stopPropagation(); _onRowSelect('tableWrap')"></td>
             <td class="small text-muted">
               <strong>${row.id}</strong>
               <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-id-btn"

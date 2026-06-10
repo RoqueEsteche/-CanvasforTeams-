@@ -613,30 +613,13 @@
                         </div>
                         <div class="form-grid-3">
                             <div class="field">
-                                <label class="field-label" for="ci_email">Email personal <span class="req">*</span></label>
-                                <input type="email" id="ci_email" placeholder="usuario@gmail.com" required>
-                            </div>
-                            <div class="field">
-                                <label class="field-label" for="ci_rol">Rol</label>
-                                <select id="ci_rol" title="Rol">
-                                    <option value="student">Estudiante</option>
-                                    <option value="teacher">Docente</option>
-                                </select>
-                            </div>
-                            <div class="field">
-                                <label class="field-label" for="ci_plataforma">Plataforma</label>
-                                <select id="ci_plataforma" title="Plataforma">
-                                    <option value="both">Canvas + Teams</option>
-                                    <option value="canvas">Solo Canvas</option>
-                                    <option value="teams">Solo Teams</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-grid-3">
-                            <div class="field">
-                                <label class="field-label" for="ci_tipo">Tipo de programa</label>
-                                <select id="ci_tipo" title="Programa" onchange="toggleProg('ci')">
+                                <label class="field-label" for="ci_tipo">Programa <span class="req">*</span></label>
+                                <select id="ci_tipo" title="Programa" onchange="toggleProg('ci'); fetchCourses();" required>
+                                    <option value="" disabled selected>Seleccione...</option>
                                     <option value="grado">Grado</option>
+                                    <option value="cpel">CPEL</option>
+                                    <option value="ga">GA</option>
+                                    <option value="gnd">GND</option>
                                     <option value="mba">MBA</option>
                                     <option value="diplomado">Diplomado</option>
                                 </select>
@@ -646,9 +629,44 @@
                                 <input type="text" id="ci_programa" placeholder="Ej: Diplomado en SQL avanzado" disabled>
                             </div>
                         </div>
+                        <div class="form-grid-3">
+                            <div class="field">
+                                <label class="field-label" for="ci_email">Email personal <span class="req">*</span></label>
+                                <input type="email" id="ci_email" placeholder="usuario@gmail.com" required>
+                                <div id="ci_email_generated" style="font-size:11px; color:var(--blue); margin-top:4px;"></div>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ci_plataforma">Plataforma</label>
+                                <select id="ci_plataforma" title="Plataforma">
+                                    <option value="both">Canvas + Teams</option>
+                                    <option value="canvas">Solo Canvas</option>
+                                    <option value="teams">Solo Teams</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label" for="ci_rol">Rol</label>
+                                <select id="ci_rol" title="Rol">
+                                    <option value="student">Estudiante</option>
+                                    <option value="teacher">Docente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field" id="materias-container" style="display:none; margin-bottom: 15px; border: 1px solid var(--border); padding: 10px; border-radius: 4px;">
+                            <label class="field-label">Seleccionar Materias (Canvas) <span class="hint" id="materias-loading"></span></label>
+                            <input type="text" id="materias-search" placeholder="Buscar materias..." style="width:100%; margin-bottom:10px; padding:6px; border:1px solid var(--border-mid); border-radius:4px;" onkeyup="filterCourses()">
+                            <div id="materias-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                                <!-- Courses will be populated here -->
+                            </div>
+                        </div>
                         <div class="field">
-                            <label class="field-label" for="ci_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
-                            <input type="text" id="ci_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                            <label class="field-label">Copias de correo (CC)</label>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="comercialcredenciales@usil.edu.py" data-group="ci"> Comercial</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="lflorentin@usil.edu.py" data-group="ci"> L. Florentín</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="resteche@usil.edu.py" data-group="ci"> R. Esteche</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="usilbusinessschool@usil.edu.py" data-group="ci"> UBS</label>
+                            </div>
+                            <input type="text" id="ci_cc_otros" placeholder="Otros CC (separar por coma)">
                         </div>
                         <label class="check-field">
                             <input type="checkbox" id="ci_enviar" checked>
@@ -790,8 +808,14 @@
                             <input type="text" id="ri_programa" placeholder="Ej: Diplomado en SQL avanzado" disabled>
                         </div>
                         <div class="field">
-                            <label class="field-label" for="ri_cc">CC adicionales <span class="hint">(separar por coma)</span></label>
-                            <input type="text" id="ri_cc" placeholder="correo1@mail.com, correo2@mail.com">
+                            <label class="field-label">Copias de correo (CC)</label>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="comercialcredenciales@usil.edu.py" data-group="ri"> Comercial</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="lflorentin@usil.edu.py" data-group="ri"> L. Florentín</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="resteche@usil.edu.py" data-group="ri"> R. Esteche</label>
+                                <label class="check-field" style="margin:0;"><input type="checkbox" class="cc-check" value="usilbusinessschool@usil.edu.py" data-group="ri"> UBS</label>
+                            </div>
+                            <input type="text" id="ri_cc_otros" placeholder="Otros CC (separar por coma)">
                         </div>
                         <div class="form-actions">
                             <button type="button" class="btn btn-default" onclick="document.getElementById('reenviarIndForm').reset(); toggleProg('ri');">Limpiar</button>
@@ -1060,7 +1084,12 @@ function delRow(btn) {
     updateCount(tbody.id);
 }
 
-function parseCC(v) { return v.split(',').map(s => s.trim()).filter(Boolean); }
+function getCCs(prefix) {
+    const checks = Array.from(document.querySelectorAll(`.cc-check[data-group="${prefix}"]:checked`)).map(c => c.value);
+    const otrosStr = document.getElementById(`${prefix}_cc_otros`) ? document.getElementById(`${prefix}_cc_otros`).value : '';
+    const otros = otrosStr.split(',').map(s => s.trim()).filter(Boolean);
+    return [...checks, ...otros];
+}
 
 /* ── Result renderers ── */
 function statusBadge(status) {
@@ -1237,6 +1266,85 @@ function renderPreview(wrap, data) {
     rb.classList.add('show');
 }
 
+/* ── Custom functions for courses and email preview ── */
+async function fetchCourses() {
+    const prog = document.getElementById('ci_tipo').value;
+    const container = document.getElementById('materias-container');
+    const loading = document.getElementById('materias-loading');
+    const list = document.getElementById('materias-list');
+    
+    if (!prog) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    loading.innerText = "(Cargando...)";
+    list.innerHTML = "";
+    
+    try {
+        // Here we could filter by program if the backend supported it, but for now we fetch recent active courses.
+        const res = await fetch('/ingreso/courses');
+        if (res.ok) {
+            const data = await res.json();
+            window._allCourses = data;
+            renderCoursesList(data);
+            loading.innerText = `(${data.length} materias encontradas)`;
+        } else {
+            loading.innerText = "(Error al cargar)";
+        }
+    } catch (err) {
+        loading.innerText = "(Error de conexión)";
+    }
+}
+
+function renderCoursesList(courses) {
+    const list = document.getElementById('materias-list');
+    list.innerHTML = "";
+    if (!courses || courses.length === 0) {
+        list.innerHTML = "<div style='font-size:12px;color:var(--text-muted);'>No se encontraron materias.</div>";
+        return;
+    }
+    courses.forEach(c => {
+        const lbl = document.createElement('label');
+        lbl.className = 'check-field';
+        lbl.style.margin = '0';
+        lbl.innerHTML = `<input type="checkbox" value="${c.id}" class="materia-check"> <span style="font-size:12.5px;">${c.name}</span>`;
+        list.appendChild(lbl);
+    });
+}
+
+function filterCourses() {
+    const term = document.getElementById('materias-search').value.toLowerCase();
+    if (!window._allCourses) return;
+    const filtered = window._allCourses.filter(c => c.name.toLowerCase().includes(term));
+    renderCoursesList(filtered);
+}
+
+async function updateEmailPreview() {
+    const fullName = document.getElementById('ci_nombre').value;
+    const cedula = document.getElementById('ci_cedula').value;
+    const plat = document.getElementById('ci_plataforma').value || 'both';
+    if (fullName && cedula) {
+        try {
+            const res = await fetch('/ingreso/preview', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: fullName, cedula: cedula, personal_email: 'test@usil.edu.py',
+                    role: 'student', platform: plat, program_type: 'grado', send_email: false, cc: []
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('ci_email_generated').innerText = "Email institucional: " + data.institutional_email;
+            }
+        } catch (err) {}
+    }
+}
+
+document.getElementById('ci_nombre').addEventListener('blur', updateEmailPreview);
+document.getElementById('ci_cedula').addEventListener('blur', updateEmailPreview);
+
 /* ── Form submissions ── */
 document.getElementById('crearIndForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -1244,6 +1352,7 @@ document.getElementById('crearIndForm').addEventListener('submit', async e => {
     document.getElementById('crearIndResult').classList.remove('show');
     setLoading(btn, true);
     try {
+        const selectedCourses = Array.from(document.querySelectorAll('#materias-list input[type="checkbox"]:checked')).map(cb => cb.value);
         const res = await fetch('/ingreso/create', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1255,7 +1364,8 @@ document.getElementById('crearIndForm').addEventListener('submit', async e => {
                 program_type: document.getElementById('ci_tipo').value,
                 program_name: document.getElementById('ci_programa').value,
                 send_email:   document.getElementById('ci_enviar').checked,
-                cc:           parseCC(document.getElementById('ci_cc').value),
+                cc:           getCCs('ci'),
+                courses:      selectedCourses
             })
         });
         const data = await res.json();
@@ -1288,7 +1398,7 @@ document.getElementById('reenviarIndForm').addEventListener('submit', async e =>
                 platform:     document.getElementById('ri_plataforma').value,
                 program_type: document.getElementById('ri_tipo').value,
                 program_name: document.getElementById('ri_programa').value,
-                cc:           parseCC(document.getElementById('ri_cc').value),
+                cc:           getCCs('ri'),
             })
         });
         const data = await res.json();

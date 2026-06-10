@@ -1,4 +1,4 @@
-﻿"""Canvas user management endpoints."""
+"""Canvas user management endpoints."""
 import asyncio
 import logging
 from typing import Annotated
@@ -61,6 +61,7 @@ async def list_users(
     params: dict = {"per_page": per_page}
     if search_term:
         params["search_term"] = search_term
+        max_records = min(max_records, 100)
 
     if cached is not None:
         # Stale-while-revalidate: respuesta inmediata + refresco en background
@@ -104,7 +105,7 @@ async def create_user(body: CanvasUserCreate, request: Request):
     }
     try:
         data = await canvas.post(f"/accounts/{_ACCOUNT}/users", payload)
-        cache.invalidate("canvas:users:")
+        cache.patch_list("canvas:users:", data.get("id"), data, id_field="id", action="create")
         await database.upsert_canvas_users([data])
         user = auth_service.get_user_from_request(request)
         audit.log("create", "canvas_user", user=user.get("email","?") if user else "api",
@@ -154,7 +155,10 @@ async def update_user(user_id: str, body: CanvasUserUpdate):
     if body.email:
         payload["user"]["email"] = body.email
     try:
-        return await canvas.put(f"/users/{user_id}", payload)
+        data = await canvas.put(f"/users/{user_id}", payload)
+        cache.patch_list("canvas:users:", user_id, data, id_field="id", action="update")
+        await database.upsert_canvas_users([data])
+        return data
     except StarletteHTTPException:
         raise
     except Exception as exc:
@@ -188,7 +192,7 @@ async def delete_user(user_id: str, request: Request):
     try:
         data = await canvas.delete(f"/accounts/{_ACCOUNT}/users/{user_id}")
         await database.delete_canvas_user(user_id)
-        cache.invalidate("canvas:users:")
+        cache.patch_list("canvas:users:", user_id, None, id_field="id", action="delete")
         return data
     except StarletteHTTPException:
         raise

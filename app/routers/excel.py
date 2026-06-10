@@ -23,7 +23,7 @@ from app.models.canvas import BulkResult
 from app.services import canvas_client as canvas
 from app.services import teams_client as graph
 from app.services.credential_generator import generate_credentials
-from app.services.email_service import send_welcome_email
+from app.services.email_service import send_welcome_email, get_program_attachments
 from app.services.teams_client import create_team_via_group
 
 router = APIRouter(tags=["Excel Import/Export"])
@@ -607,10 +607,16 @@ async def import_ingreso(file: UploadFile = File(...)) -> BulkResult:
             if do_email and p_email:
                 try:
                     await send_welcome_email(
-                        p_email, creds["full_name"], creds["email"],
-                        login_id, creds["password"], platform,
-                        program_type, program_name,
+                        to_email=p_email, 
+                        full_name=creds["full_name"], 
+                        institutional_email=creds["email"],
+                        login_id=login_id, 
+                        password=creds["password"], 
+                        platform=platform,
+                        program_type=program_type, 
+                        program_name=program_name,
                         extra_cc=extra_cc or None,
+                        attachments=get_program_attachments(program_type)
                     )
                     entry["email"] = "sent"
                 except Exception as exc:
@@ -730,3 +736,68 @@ async def sync_canvas_to_teams(body: SyncMembersRequest) -> BulkResult:
 
     await asyncio.gather(*[_add(e) for e in enrollments])
     return result
+@router.get("/template/unified-creation", summary="Descargar plantilla Excel para creación conjunta")
+async def template_unified_creation():
+    import io
+    import openpyxl
+    from fastapi.responses import StreamingResponse
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Cursos y Equipos"
+
+    headers = [
+        "Nombre del Curso", "Código del Curso", "Identificador del Propietario"
+    ]
+    ws.append(headers)
+    for col in ws.iter_cols(min_row=1, max_row=1):
+        for cell in col:
+            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            cell.fill = openpyxl.styles.PatternFill(start_color="5A67D8", end_color="5A67D8", fill_type="solid")
+            cell.alignment = openpyxl.styles.Alignment(horizontal="center")
+
+    ws.append(["Curso de Prueba", "PRB-101", "profesor@usil.edu.py"])
+    for col_letter in ["A", "B", "C"]:
+        ws.column_dimensions[col_letter].width = 25
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_creacion_unificada.xlsx"},
+    )
+
+@router.get("/template/unified-enrollment", summary="Descargar plantilla Excel para matriculación conjunta")
+async def template_unified_enrollment():
+    import io
+    import openpyxl
+    from fastapi.responses import StreamingResponse
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Matriculaciones"
+
+    headers = [
+        "Identificador de Usuario", "ID Curso Canvas", "ID Equipo Teams", "Rol"
+    ]
+    ws.append(headers)
+    for col in ws.iter_cols(min_row=1, max_row=1):
+        for cell in col:
+            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            cell.fill = openpyxl.styles.PatternFill(start_color="5A67D8", end_color="5A67D8", fill_type="solid")
+            cell.alignment = openpyxl.styles.Alignment(horizontal="center")
+
+    ws.append(["1234567", "10203", "1a2b3c-4d5e", "student"])
+    for col_letter in ["A", "B", "C", "D"]:
+        ws.column_dimensions[col_letter].width = 25
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_matriculacion_unificada.xlsx"},
+    )

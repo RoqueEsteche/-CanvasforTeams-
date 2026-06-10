@@ -326,7 +326,7 @@ Todos los datos se **persisten automáticamente** aunque cierres la página o re
 ```bash
 # Verifica que las credenciales en .env sean correctas
 # Verifica que Canvas y Azure estén disponibles
-python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 3000
 ```
 
 ### Los reportes de asistencia están vacíos

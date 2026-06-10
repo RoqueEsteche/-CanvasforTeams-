@@ -1,41 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Usuarios Azure AD{% endblock %}
-{% block breadcrumb %}Microsoft Teams › Usuarios Azure AD{% endblock %}
-{% block nav_tu %}active{% endblock %}
-{% block content %}
-<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
-  <div><div class="page-title">Usuarios Azure AD</div><div class="page-subtitle">Gestión de usuarios del directorio Microsoft 365</div></div>
-  <div class="ms-auto d-flex gap-2 flex-wrap">
-    <button class="btn btn-success" onclick="openCreateUser()"><i class="bi bi-person-plus-fill me-1"></i>Crear usuario</button>
-    <button class="btn btn-primary" onclick="openExcelUsers()"><i class="bi bi-table me-1"></i>Carga Masiva</button>
-  </div>
-</div>
 
-<div class="table-card">
-  <div class="card-header flex-wrap gap-2">
-    <input type="text" id="searchUser" class="form-control search-box" placeholder="🔍 Buscar (nombre, UPN, email)..." oninput="onSearchInput()">
-    <select id="deptFilter" class="form-select filter-select-md" title="Filtrar por departamento" onchange="renderUsers(_allUsers)">
-      <option value="">Todos los departamentos</option>
-    </select>
-    <select id="statusFilter" class="form-select filter-select-sm" title="Filtrar por estado de cuenta" onchange="renderUsers(_allUsers)">
-      <option value="">Todos los estados</option>
-      <option value="true">Habilitado</option>
-      <option value="false">Deshabilitado</option>
-    </select>
-    <span class="text-muted small" id="userCount"></span>
-    <span id="selBadge_tableWrap" class="badge bg-danger sel-badge"></span>
-    <span class="sel-hint ms-auto"><i class="bi bi-check2-square me-1"></i>Marca filas para eliminar en masa</span>
-    <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','teams_usuarios.xlsx')" title="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
-    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadUsers(false)" title="Recargar"><i class="bi bi-arrow-clockwise"></i></button>
-  </div>
-  <div id="tableWrap" class="table-responsive">
-    <div class="text-center py-5"><span class="spinner-border"></span></div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
 let _allUsers = [];
 let _searchTimer = null;
 let _loadedAll = false;
@@ -64,7 +27,7 @@ function _renderTeamsUsersPage(users) {
     <table class="table table-sm table-hover mb-0" style="cursor:pointer;table-layout:auto">
       <thead>
         <tr>
-          <th style="width:30px"><input type="checkbox" class="form-check-input" onclick="toggleSelectAll('tableWrap', this.checked)"></th>
+          <th style="width:30px"></th>
           <th>ID</th>
           <th>Nombre</th>
           <th>UPN</th>
@@ -78,7 +41,7 @@ function _renderTeamsUsersPage(users) {
       <tbody>
         ${users.map(row => `
           <tr class="tu-row" data-upn="${esc(row.userPrincipalName||row.mail||'')}" data-name="${esc(row.displayName||'')}">
-            <td><input type="checkbox" class="form-check-input row-sel" data-cid="tableWrap" data-rid="${esc(String(row.id))}" onclick="event.stopPropagation(); _onRowSelect('tableWrap')"></td>
+            <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation(); toggleRowSelection(event, this)"></td>
             <td title="${esc(row.id)}">
               <span class="small text-muted" style="max-width:130px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                 <strong>${row.id.substring(0,20)}…</strong>
@@ -466,5 +429,4 @@ async function bulkDelete(containerId) {
 }
 
 loadUsers(false);
-</script>
-{% endblock %}
+

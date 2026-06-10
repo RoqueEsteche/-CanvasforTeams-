@@ -844,7 +844,7 @@ function logError(message, { type = 'Error', severity = 'error', source = '', st
   const id     = 'err-' + Date.now();
   const sevCls = { error: 'err-sev-error', warning: 'err-sev-warning', info: 'err-sev-info', api: 'err-sev-api' }[severity] || 'err-sev-error';
   const sevLbl = { error: 'Error', warning: 'Advertencia', info: 'Info', api: 'API' }[severity] || 'Error';
-  const esc    = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc    = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
   const stackHtml = stack
     ? `<button class="err-stack-toggle" onclick="_errToggleStack('${id}')" type="button">
@@ -867,7 +867,7 @@ function logError(message, { type = 'Error', severity = 'error', source = '', st
     ${source ? `<div class="err-source"><i class="bi bi-geo-alt-fill me-1" style="font-size:.68rem"></i>${esc(source)}</div>` : ''}
     ${stackHtml}
     <button class="err-copy-btn" type="button"
-            onclick="navigator.clipboard.writeText(${JSON.stringify(copyText)}).then(()=>toast('Copiado','success'))">
+            onclick="navigator.clipboard.writeText(${esc(JSON.stringify(copyText))}).then(()=>toast('Copiado','success'))">
       <i class="bi bi-clipboard me-1"></i>Copiar
     </button>`;
 
@@ -987,7 +987,7 @@ function _pgDraw(wrapId) {
 
   card.insertAdjacentHTML('beforeend', `
     <div class="pg-bar">
-      <span class="pg-info">${from}–${to} de ${total}</span>
+      <span class="pg-info">${from}—${to} de ${total}</span>
       <div class="pg-btns">
         <button class="pg-btn" ${p <= 1 ? 'disabled' : ''} onclick="pgGo('${wrapId}',${p - 1})">&laquo;</button>
         ${nums}
@@ -995,3 +995,58 @@ function _pgDraw(wrapId) {
       </div>
     </div>`);
 }
+
+/* ── Command Palette (Ctrl+K) ── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const modal = new bootstrap.Modal(document.getElementById('commandPaletteModal'));
+    modal.show();
+  }
+});
+
+document.getElementById('commandPaletteModal')?.addEventListener('shown.bs.modal', function () {
+  document.getElementById('cmdPaletteInput').focus();
+});
+
+let _cmdPaletteTimeout;
+document.getElementById('cmdPaletteInput')?.addEventListener('input', function(e) {
+  clearTimeout(_cmdPaletteTimeout);
+  const q = e.target.value.trim();
+  const resultsEl = document.getElementById('cmdPaletteResults');
+  if (!q || q.length < 3) {
+    resultsEl.innerHTML = '';
+    return;
+  }
+  
+  resultsEl.innerHTML = '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Buscando...</div>';
+  
+  _cmdPaletteTimeout = setTimeout(async () => {
+    try {
+      const [users, courses] = await Promise.all([
+        api.get(`/canvas/users?search=${encodeURIComponent(q)}&per_page=5`).catch(() => []),
+        api.get(`/canvas/courses?search=${encodeURIComponent(q)}&per_page=5`).catch(() => [])
+      ]);
+      const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      
+      const html = [
+        ...users.map(u => `
+          <a href="/ui/canvas/users?q=${encodeURIComponent(u.login_id || u.email)}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center gap-3">
+            <div class="bg-primary bg-opacity-10 text-primary rounded p-2"><i class="bi bi-person-fill fs-5"></i></div>
+            <div><div class="fw-bold">${esc(u.name)}</div><div class="small text-muted">${esc(u.login_id || u.email || '')}</div></div>
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-auto rounded-pill px-3 py-2">Usuario</span>
+          </a>`),
+        ...courses.map(c => `
+          <a href="/ui/canvas/courses?q=${encodeURIComponent(c.course_code)}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center gap-3">
+            <div class="bg-success bg-opacity-10 text-success rounded p-2"><i class="bi bi-book-fill fs-5"></i></div>
+            <div><div class="fw-bold">${esc(c.name)}</div><div class="small text-muted">${esc(c.course_code || '')}</div></div>
+            <span class="badge bg-success bg-opacity-10 text-success ms-auto rounded-pill px-3 py-2">Curso</span>
+          </a>`)
+      ].join('');
+      
+      resultsEl.innerHTML = html || '<div class="p-4 text-center text-muted"><i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>Sin resultados</div>';
+    } catch (err) {
+      resultsEl.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>Error al buscar</div>';
+    }
+  }, 400);
+});

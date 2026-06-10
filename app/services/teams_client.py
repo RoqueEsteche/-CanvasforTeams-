@@ -36,6 +36,9 @@ def _get_access_token() -> str:
     if _token_cache["access_token"] and time.time() < _token_cache["expires_at"] - 60:
         return _token_cache["access_token"]
 
+    if not settings.azure_tenant_id or not settings.azure_client_id:
+        raise HTTPException(status_code=401, detail="Azure AD: Las credenciales no están configuradas en el archivo .env (faltan tenant_id o client_id).")
+
     app = msal.ConfidentialClientApplication(
         client_id=settings.azure_client_id,
         client_credential=settings.azure_client_secret,
@@ -43,7 +46,9 @@ def _get_access_token() -> str:
     )
     result = app.acquire_token_for_client(scopes=_SCOPE)
     if "access_token" not in result:
-        raise RuntimeError(f"MSAL error: {result.get('error_description', result)}")
+        err_desc = result.get('error_description', result)
+        _logger.error(f"MSAL token error: {err_desc}")
+        raise HTTPException(status_code=401, detail=f"Azure AD: No se pudo obtener el token. Verificá AZURE_TENANT_ID y AZURE_CLIENT_SECRET. Detalle: {err_desc}")
 
     _token_cache["access_token"] = result["access_token"]
     _token_cache["expires_at"] = time.time() + result.get("expires_in", 3600)

@@ -1,4 +1,4 @@
-﻿"""Microsoft Teams team/group management endpoints."""
+"""Microsoft Teams team/group management endpoints."""
 import asyncio
 from typing import Annotated
 
@@ -34,7 +34,7 @@ async def list_teams(
 ):
     params = {
         "$top": top,
-        "$select": "id,displayName,description,visibility",
+        "$select": "id,displayName,description,visibility,createdDateTime",
         "$filter": "resourceProvisioningOptions/Any(x:x eq 'Team')",
     }
     return await graph.paginate("/groups", params)
