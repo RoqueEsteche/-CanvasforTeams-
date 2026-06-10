@@ -149,15 +149,11 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
 ```
 
-### Producción (Render / Docker)
+### Producción (servidor local)
 
 ```bash
-# Con Docker
-docker build -t canvas-teams .
-docker run -p 3000:3000 --env-file .env canvas-teams
-
-# Con Render
-# Ver render.yaml en la raíz del proyecto
+# Sin recarga automática
+python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
 ```
 
 ### URLs Principales
