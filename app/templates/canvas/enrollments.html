@@ -290,7 +290,7 @@ function openExcelEnroll() {
       columns: [
         { key: 'course_id', label: 'ID Curso',   required: true, width: 90 },
         { key: 'user_id',   label: 'ID Usuario', required: true, width: 90 },
-        { key: 'type',      label: 'Rol',         required: true, width: 170,
+        { key: 'type',      label: 'Rol',         required: true, width: 170, defaultValue: 'StudentEnrollment',
           options: [
             { value: 'StudentEnrollment',  label: 'Estudiante'      },
             { value: 'TeacherEnrollment',  label: 'Profesor'        },
@@ -341,7 +341,7 @@ function openExcelEnroll() {
     columns: [
       { key: 'user_id', label: 'ID Usuario', required: true, width: 110,
         placeholder: 'Canvas User ID' },
-      { key: 'type',    label: 'Rol',         required: true, width: 170,
+      { key: 'type',    label: 'Rol',         required: true, width: 170, defaultValue: 'StudentEnrollment',
         options: [
           { value: 'StudentEnrollment',  label: 'Estudiante'      },
           { value: 'TeacherEnrollment',  label: 'Profesor'        },

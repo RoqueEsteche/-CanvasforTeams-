@@ -575,7 +575,8 @@ function _ssMakeRow(r, data = {}) {
     const td = document.createElement('td');
     let el;
 
-    if (col.options) {
+      const currentVal = data[col.key] !== undefined ? data[col.key] : col.defaultValue;
+      if (col.options) {
       el = document.createElement('select');
       el.className = 'ss-cell';
       const empty = document.createElement('option');
@@ -585,7 +586,7 @@ function _ssMakeRow(r, data = {}) {
         const o = document.createElement('option');
         o.value       = opt.value ?? opt;
         o.textContent = opt.label ?? opt;
-        if (data[col.key] === o.value) o.selected = true;
+        if (currentVal === o.value) o.selected = true;
         el.appendChild(o);
       });
       el.addEventListener('change', _ssUpdateCount);
@@ -593,7 +594,7 @@ function _ssMakeRow(r, data = {}) {
       el = document.createElement('input');
       el.type = col.type || 'text';
       el.className = 'ss-cell';
-      el.value = data[col.key] ?? '';
+      el.value = currentVal ?? '';
       if (col.placeholder) el.placeholder = col.placeholder;
       el.addEventListener('input', _ssUpdateCount);
     }
