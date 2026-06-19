@@ -25,7 +25,10 @@ def _r(request: Request, template: str, **ctx):
 @router.get("/", response_class=HTMLResponse)
 @router.get("/ui", response_class=HTMLResponse)
 async def root(request: Request):
-    return _r(request, "dashboard.html")
+    user = _current_user(request)
+    if not user:
+        return RedirectResponse(url="/ui/login", status_code=302)
+    return RedirectResponse(url="/ui/home", status_code=302)
 
 
 @router.get("/ui/canvas/users", response_class=HTMLResponse)
@@ -87,7 +90,7 @@ async def ingreso_page(request: Request):
 async def login_page(request: Request):
     user = _current_user(request)
     if user:
-        return RedirectResponse(url="/ui/profile")
+        return RedirectResponse(url="/ui/home", status_code=302)
     return _r(request, "login.html")
 
 
