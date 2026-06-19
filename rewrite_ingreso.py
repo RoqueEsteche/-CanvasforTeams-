@@ -1,4 +1,6 @@
-{% extends "base.html" %}
+import os
+
+html_content = """{% extends "base.html" %}
 
 {% block title %}Nuevo Ingreso{% endblock %}
 {% block breadcrumb %}Gestión de Usuarios › Nuevo Ingreso{% endblock %}
@@ -582,3 +584,8 @@ function openExcelVerificar() {
 
 </script>
 {% endblock %}
+"""
+
+with open(r'c:\Users\Roque Esteche\Desktop\Taller mecanico\src\claudecode-CanvasforTeams-\app\templates\ingreso.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+print("ingreso.html updated successfully")
