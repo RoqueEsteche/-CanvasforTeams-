@@ -1,59 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Búsqueda Unificada{% endblock %}
-{% block breadcrumb %}Gestión Unificada — Búsqueda Unificada{% endblock %}
-{% block nav_uu %}active{% endblock %}
-{% block content %}
-<div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
-  <div>
-    <div class="page-title">Búsqueda Unificada</div>
-    <div class="page-subtitle">Gestión Maestro-Detalle de Canvas y Teams</div>
-  </div>
-</div>
 
-<div class="card shadow-sm mb-4 border-0" style="min-height: 75vh;">
-  <div class="row g-0 h-100">
-
-    <!-- Left Pane: Master (Search & List) -->
-    <div class="col-md-5 col-lg-4 border-end bg-body d-flex flex-column"
-      style="border-top-left-radius: var(--radius-lg); border-bottom-left-radius: var(--radius-lg);">
-      <div class="p-4 border-bottom bg-body-tertiary">
-        <label class="form-label fw-semibold text-muted small text-uppercase">Buscar Perfil</label>
-        <div class="input-group">
-          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" id="unifiedSearchInput" class="form-control border-start-0 ps-0 shadow-none"
-            placeholder="Email o ID..." onkeydown="if(event.key==='Enter') searchUnified()">
-        </div>
-      </div>
-
-      <div id="unifiedResultsArea" class="list-group list-group-flush overflow-auto flex-grow-1"
-        style="max-height: calc(75vh - 90px);">
-        <!-- Estado inicial -->
-        <div class="p-5 text-center text-muted">
-          <i class="bi bi-person-lines-fill fs-1 opacity-25 mb-3 d-block"></i>
-          <span class="small">Ingresa un correo o ID y presiona Enter para buscar.</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Pane: Detail -->
-    <div class="col-md-7 col-lg-8 bg-body-secondary position-relative"
-      style="border-top-right-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);"
-      id="unifiedDetailPane">
-      <!-- Estado vacío Detail -->
-      <div class="d-flex align-items-center justify-content-center h-100 w-100 text-muted flex-column opacity-50 py-5">
-        <i class="bi bi-layout-split" style="font-size: 4rem;"></i>
-        <h5 class="mt-3">Selecciona un resultado</h5>
-        <p class="small">Los detalles de Canvas y Teams aparecerán aquí.</p>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-{% endblock %}
-
-{% block scripts %}
-<script>
   // ==========================================
   // ESTADO GLOBAL
   // ==========================================
@@ -497,5 +442,3 @@
     } catch (e) { toast('Error: ' + e.message, 'danger'); }
     finally { setLoading(btn, false); }
   }
-</script>
-{% endblock %}
