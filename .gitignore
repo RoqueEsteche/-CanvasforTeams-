@@ -13,7 +13,8 @@ dist/
 *.log
 
 # SQLite runtime files
-app.db
+data/
+*.db
 *.db-shm
 *.db-wal
 
