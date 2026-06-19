@@ -4,23 +4,29 @@
 {% block nav_uu %}active{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
-  <div><div class="page-title">Búsqueda Unificada</div><div class="page-subtitle">Gestión Maestro-Detalle de Canvas y Teams</div></div>
+  <div>
+    <div class="page-title">Búsqueda Unificada</div>
+    <div class="page-subtitle">Gestión Maestro-Detalle de Canvas y Teams</div>
+  </div>
 </div>
 
 <div class="card shadow-sm mb-4 border-0" style="min-height: 75vh;">
   <div class="row g-0 h-100">
-    
+
     <!-- Left Pane: Master (Search & List) -->
-    <div class="col-md-5 col-lg-4 border-end bg-body d-flex flex-column" style="border-top-left-radius: var(--radius-lg); border-bottom-left-radius: var(--radius-lg);">
+    <div class="col-md-5 col-lg-4 border-end bg-body d-flex flex-column"
+      style="border-top-left-radius: var(--radius-lg); border-bottom-left-radius: var(--radius-lg);">
       <div class="p-4 border-bottom bg-body-tertiary">
         <label class="form-label fw-semibold text-muted small text-uppercase">Buscar Perfil</label>
         <div class="input-group">
           <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" id="unifiedSearchInput" class="form-control border-start-0 ps-0 shadow-none" placeholder="Email o ID..." onkeydown="if(event.key==='Enter') searchUnified()">
+          <input type="text" id="unifiedSearchInput" class="form-control border-start-0 ps-0 shadow-none"
+            placeholder="Email o ID..." onkeydown="if(event.key==='Enter') searchUnified()">
         </div>
       </div>
-      
-      <div id="unifiedResultsArea" class="list-group list-group-flush overflow-auto flex-grow-1" style="max-height: calc(75vh - 90px);">
+
+      <div id="unifiedResultsArea" class="list-group list-group-flush overflow-auto flex-grow-1"
+        style="max-height: calc(75vh - 90px);">
         <!-- Estado inicial -->
         <div class="p-5 text-center text-muted">
           <i class="bi bi-person-lines-fill fs-1 opacity-25 mb-3 d-block"></i>
@@ -30,7 +36,9 @@
     </div>
 
     <!-- Right Pane: Detail -->
-    <div class="col-md-7 col-lg-8 bg-body-secondary position-relative" style="border-top-right-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);" id="unifiedDetailPane">
+    <div class="col-md-7 col-lg-8 bg-body-secondary position-relative"
+      style="border-top-right-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);"
+      id="unifiedDetailPane">
       <!-- Estado vacío Detail -->
       <div class="d-flex align-items-center justify-content-center h-100 w-100 text-muted flex-column opacity-50 py-5">
         <i class="bi bi-layout-split" style="font-size: 4rem;"></i>
@@ -46,48 +54,48 @@
 
 {% block scripts %}
 <script>
-// ==========================================
-// ESTADO GLOBAL
-// ==========================================
-let lastQuery = '';
-let currentData = null;
+  // ==========================================
+  // ESTADO GLOBAL
+  // ==========================================
+  let lastQuery = '';
+  let currentData = null;
 
-const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// ==========================================
-// CONTROLADOR PRINCIPAL: BÚSQUEDA
-// ==========================================
-async function searchUnified() {
-  const query = document.getElementById('unifiedSearchInput').value.trim();
-  if (!query) { toast('Ingrese un identificador para buscar', 'warning'); return; }
-  
-  lastQuery = query;
-  
-  setLoadingState();
-  
-  try {
-    currentData = await api.get('/profile/lookup?email=' + encodeURIComponent(query));
-    renderList(currentData, query);
-    renderDetail(currentData, query);
-  } catch(e) {
-    showErrorState(e.message);
+  // ==========================================
+  // CONTROLADOR PRINCIPAL: BÚSQUEDA
+  // ==========================================
+  async function searchUnified() {
+    const query = document.getElementById('unifiedSearchInput').value.trim();
+    if (!query) { toast('Ingrese un identificador para buscar', 'warning'); return; }
+
+    lastQuery = query;
+
+    setLoadingState();
+
+    try {
+      currentData = await api.get('/profile/lookup?email=' + encodeURIComponent(query));
+      renderList(currentData, query);
+      renderDetail(currentData, query);
+    } catch (e) {
+      showErrorState(e.message);
+    }
   }
-}
 
-// ==========================================
-// RENDERIZADO DE COMPONENTES
-// ==========================================
+  // ==========================================
+  // RENDERIZADO DE COMPONENTES
+  // ==========================================
 
-// 1. Maestro: Lista de resultados (Panel Izquierdo)
-function renderList(data, query) {
-  const resArea = document.getElementById('unifiedResultsArea');
-  
-  const cName = data.canvas?.user?.name;
-  const tName = data.teams?.user?.displayName;
-  const displayName = cName || tName || 'Usuario Desconocido';
-  const email = data.canvas?.user?.login_id || data.teams?.user?.mail || query;
-  
-  resArea.innerHTML = `
+  // 1. Maestro: Lista de resultados (Panel Izquierdo)
+  function renderList(data, query) {
+    const resArea = document.getElementById('unifiedResultsArea');
+
+    const cName = data.canvas?.user?.name;
+    const tName = data.teams?.user?.displayName;
+    const displayName = cName || tName || 'Usuario Desconocido';
+    const email = data.canvas?.user?.login_id || data.teams?.user?.mail || query;
+
+    resArea.innerHTML = `
     <button class="list-group-item list-group-item-action p-4 border-0 border-bottom active" onclick="renderDetail(currentData, lastQuery)">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
@@ -103,148 +111,215 @@ function renderList(data, query) {
         ${data.teams ? '<span class="badge bg-primary bg-opacity-25 text-white border border-primary">Teams OK</span>' : '<span class="badge bg-secondary bg-opacity-25 text-white">Sin Teams</span>'}
       </div>
     </button>
-  `;
-}
+    // 2. Detalle: Panel Completo (Panel Derecho)
+  function renderDetail(data, query) {
+    const detailPane = document.getElementById('unifiedDetailPane');
+    if (!data) return;
 
-// 2. Detalle: Panel Completo (Panel Derecho)
-function renderDetail(data, query) {
-  const detailPane = document.getElementById('unifiedDetailPane');
-  if (!data) return;
+    const headerHtml = buildUnifiedHeader(data.canvas?.user, data.teams?.user, query, data.canvas?.enrollments?.length || 0, data.teams?.teams?.length || 0);
+    const canvasHtml = buildCanvasSection(data.canvas);
+    const teamsHtml = buildTeamsSection(data.teams);
 
-  const headerHtml = buildUnifiedHeader(data.canvas?.user, data.teams?.user, query);
-  const canvasHtml = buildCanvasSection(data.canvas);
-  const teamsHtml  = buildTeamsSection(data.teams);
-
-  detailPane.innerHTML = `
-    ${headerHtml}
-    <div class="p-3 p-xl-4 overflow-auto" style="max-height: calc(100% - 103px);">
-      <div class="row g-3">
+    detailPane.innerHTML = `
+      <div class="p-4 overflow-auto" style="height: 100%;">
+        ${headerHtml}
         ${canvasHtml}
         ${teamsHtml}
       </div>
-    </div>
-  `;
-}
+    `;
+  }
 
-// ==========================================
-// CONSTRUCTORES DE VISTA (TEMPLATES)
-// ==========================================
+  // ==========================================
+  // CONSTRUCTORES DE VISTA (TEMPLATES)
+  // ==========================================
 
-function buildUnifiedHeader(canvasUser, teamsUser, fallbackQuery) {
-  const displayName = canvasUser?.name || teamsUser?.displayName || 'Usuario Desconocido';
-  const email = teamsUser?.mail || teamsUser?.userPrincipalName || canvasUser?.login_id || fallbackQuery;
-  const sis = canvasUser?.sis_user_id || '—';
-  
-  const tStatus = teamsUser 
-    ? (teamsUser.accountEnabled 
-        ? '<span class="text-success"><i class="bi bi-check-circle-fill"></i> Activo en Teams</span>' 
-        : '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Bloqueado en Teams</span>') 
-    : '';
+  function buildUnifiedHeader(canvasUser, teamsUser, fallbackQuery, cursosCount, teamsCount) {
+    const displayName = canvasUser?.name || teamsUser?.displayName || 'Usuario Desconocido';
+    const email = teamsUser?.mail || teamsUser?.userPrincipalName || canvasUser?.login_id || fallbackQuery;
+    const sis = canvasUser?.sis_user_id || '—';
 
-  return `
+    const tStatus = teamsUser
+      ? (teamsUser.accountEnabled
+        ? '<span class="badge bg-success">Activo en Teams</span>'
+        : '<span class="badge bg-danger">Bloqueado en Teams</span>')
+      : '';
+      
+    const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+    return `
     <!-- Top Unified Header -->
-    <div class="px-4 py-4 border-bottom bg-body d-flex align-items-center gap-4 shadow-sm" style="border-top-right-radius: var(--radius-lg); margin: -0px;">
-      <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 70px; height: 70px;">
-        <i class="bi bi-person-fill" style="font-size: 2.5rem;"></i>
-      </div>
-      <div>
-        <h3 class="fw-bold mb-1">${esc(displayName)}</h3>
-        <div class="d-flex flex-wrap gap-3 text-muted small mt-2">
-          ${email ? `<span><i class="bi bi-envelope me-1"></i>${esc(email)}</span>` : ''}
-          ${canvasUser ? `<span><i class="bi bi-fingerprint me-1"></i>SIS: ${esc(sis)}</span>` : ''}
-          ${tStatus ? `<span>${tStatus}</span>` : ''}
+    <div class="table-card p-4 mb-4">
+      <div class="d-flex align-items-center gap-4 flex-wrap">
+        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white fs-2 flex-shrink-0"
+             style="width:72px;height:72px;background:var(--sidebar-accent)">${esc(initials)}</div>
+        <div class="flex-grow-1">
+          <h4 class="mb-0 fw-bold">${esc(displayName)}</h4>
+          <div class="text-muted small mb-2">${esc(email)}</div>
+          <div class="d-flex flex-wrap gap-2">
+            ${canvasUser ? `<span class="badge bg-light text-dark border"><i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas SIS: ${esc(sis)}</span>` : ''}
+            ${teamsUser ? `<span class="badge bg-light text-dark border"><i class="bi bi-person-badge-fill me-1" style="color:#6264a7"></i>${esc(teamsUser.jobTitle || teamsUser.department || 'Azure AD')}</span>` : ''}
+            ${tStatus}
+          </div>
         </div>
       </div>
     </div>
-  `;
-}
-
-function buildCanvasSection(canvasData) {
-  let listHtml = '';
-  let count = 0;
-
-  if (canvasData) {
-    count = canvasData.enrollments.length;
-    listHtml = `
-      <div class="list-group list-group-flush rounded border">
-        ${canvasData.enrollments.map(e => `
-          <div class="list-group-item d-flex justify-content-between align-items-center p-3">
-            <div>
-              <div class="fw-semibold">${esc(e.course_name)}</div>
-              <div class="small text-muted">${esc(e.role)} • ${esc(e.enrollment_state)}</div>
-            </div>
-            <button class="btn btn-sm btn-light text-danger btn-icon" title="Desmatricular" onclick="unenrollCanvas('${e.course_id}', '${e.id}', this)">
-              <i class="bi bi-trash3-fill"></i>
-            </button>
-          </div>`).join('') || '<div class="list-group-item text-muted p-3">Sin matrículas activas</div>'}
-      </div>`;
-  } else {
-    listHtml = `
-      <div class="text-center py-4">
-        <i class="bi bi-person-x fs-1 text-muted opacity-50 d-block"></i>
-        <div class="small text-muted mt-2 mb-3">No existe en Canvas</div>
-        <button class="btn btn-sm btn-danger" onclick="openCanvasCreate()"><i class="bi bi-person-plus me-1"></i>Crear perfil</button>
-      </div>`;
+    
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-6">
+        <div class="table-card p-3 text-center">
+          <div class="fs-3 fw-bold text-primary">${cursosCount}</div>
+          <div class="small text-muted">Matrículas Canvas</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-6">
+        <div class="table-card p-3 text-center">
+          <div class="fs-3 fw-bold" style="color:#6264a7">${teamsCount}</div>
+          <div class="small text-muted">Equipos Teams</div>
+        </div>
+      </div>
+    </div>
+    `;
   }
 
-  return `
-    <div class="col-12 col-xl-6">
-      <div class="card h-100 border-0 shadow-sm" style="border-top: 4px solid var(--canvas-red);">
-        <div class="card-body p-3">
-          <div class="d-flex align-items-center mb-3 gap-2 text-danger">
-            <i class="bi bi-journal-check fs-5"></i> <h6 class="mb-0 fw-bold">Matrículas Canvas (${count})</h6>
-          </div>
+  const ROLE_MAP = {
+    TeacherEnrollment:  { label: 'Docente',       cls: 'bg-warning text-dark' },
+    StudentEnrollment:  { label: 'Alumno',         cls: 'bg-primary'          },
+    TaEnrollment:       { label: 'Asistente TA',   cls: 'bg-info text-dark'   },
+    ObserverEnrollment: { label: 'Observador',     cls: 'bg-secondary'        },
+  };
+  const STATE_MAP = {
+    active:    { label: 'Activo',     cls: 'bg-success' },
+    invited:   { label: 'Invitado',   cls: 'bg-warning text-dark' },
+    completed: { label: 'Completado', cls: 'bg-secondary' },
+    inactive:  { label: 'Inactivo',   cls: 'bg-danger'  },
+  };
+
+  function roleBadge(role) {
+    const r = ROLE_MAP[role] || { label: role || '—', cls: 'bg-secondary' };
+    return \`<span class="badge \${r.cls}">\${r.label}</span>\`;
+  }
+  function stateBadge(state) {
+    const s = STATE_MAP[state] || { label: state || '—', cls: 'bg-secondary' };
+    return \`<span class="badge \${s.cls}">\${s.label}</span>\`;
+  }
+
+  function buildCanvasSection(canvasData) {
+    let listHtml = '';
+
+    if (canvasData && canvasData.enrollments.length > 0) {
+      listHtml = `
+      <div class="table-responsive mb-0" style="max-height:340px;overflow-y:auto">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Código</th><th>Nombre del curso</th><th>Programa</th>
+              <th>Año</th><th>Rol</th><th>Estado</th><th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${canvasData.enrollments.map(e => `
+            <tr>
+              <td class="small text-muted align-middle">${esc(e.course_code || '—')}</td>
+              <td class="small fw-semibold align-middle">${esc(e.course_name)}</td>
+              <td class="small align-middle">${esc(e.program || '—')}</td>
+              <td class="small align-middle">${esc(e.year || '—')}</td>
+              <td class="align-middle">${roleBadge(e.role)}</td>
+              <td class="align-middle">${stateBadge(e.enrollment_state)}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-light text-danger btn-icon" title="Desmatricular" onclick="unenrollCanvas('${e.course_id}', '${e.id}', this)">
+                  <i class="bi bi-trash3-fill"></i>
+                </button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } else if (canvasData) {
+      listHtml = '<div class="text-center text-muted py-4">Sin matrículas activas</div>';
+    } else {
+      listHtml = `
+        <div class="text-center py-4">
+          <i class="bi bi-person-x fs-1 text-muted opacity-50 d-block"></i>
+          <div class="small text-muted mt-2 mb-3">No existe en Canvas</div>
+          <button class="btn btn-sm btn-danger" onclick="openCanvasCreate()"><i class="bi bi-person-plus me-1"></i>Crear perfil</button>
+        </div>`;
+    }
+
+    return `
+      <!-- Canvas section -->
+      <div class="table-card mb-4">
+        <div class="card-header border-bottom-0 pb-0">
+          <i class="bi bi-mortarboard-fill text-warning me-2"></i><strong>Canvas LMS</strong>
+        </div>
+        <div class="p-3">
           ${listHtml}
         </div>
       </div>
-    </div>`;
-}
-
-function buildTeamsSection(teamsData) {
-  let listHtml = '';
-  let count = 0;
-  const tId = teamsData?.user?.id;
-
-  if (teamsData) {
-    count = teamsData.teams.length;
-    listHtml = `
-      <div id="teamsListContainer" class="list-group list-group-flush rounded border">
-        ${teamsData.teams.map(team => `
-          <div class="list-group-item d-flex justify-content-between align-items-center p-3 teams-row">
-            <div class="fw-semibold"><i class="bi bi-people me-2 text-muted"></i>${esc(team.displayName)}</div>
-            <button class="btn btn-sm btn-light text-danger btn-icon" title="Quitar de equipo" onclick="removeTeamsMember('${team.id}', '${tId}', this)">
-              <i class="bi bi-trash3-fill"></i>
-            </button>
-          </div>`).join('') || '<div class="list-group-item text-muted p-3 empty-teams-msg">No pertenece a ningún equipo</div>'}
-      </div>`;
-  } else {
-    listHtml = `
-      <div class="text-center py-4">
-        <i class="bi bi-person-x fs-1 text-muted opacity-50 d-block"></i>
-        <div class="small text-muted mt-2 mb-3">No existe en Teams</div>
-        <button class="btn btn-sm btn-primary" onclick="openTeamsCreate()"><i class="bi bi-person-plus me-1"></i>Crear perfil</button>
-      </div>`;
+    `;
   }
 
-  return `
-    <div class="col-12 col-xl-6">
-      <div class="card h-100 border-0 shadow-sm" style="border-top: 4px solid #4F52B2;">
-        <div class="card-body p-3">
-          <div class="d-flex align-items-center mb-3 gap-2" style="color: #4F52B2;">
-            <i class="bi bi-microsoft-teams fs-5"></i> <h6 id="teamsCountLabel" class="mb-0 fw-bold">Equipos Teams (${count})</h6>
-          </div>
+  function buildTeamsSection(teamsData) {
+    let listHtml = '';
+    const tId = teamsData?.user?.id;
+
+    if (teamsData && teamsData.teams.length > 0) {
+      const VISIB = { Public: 'Público', Private: 'Privado', HiddenMembership: 'Organización' };
+      const VISIB_CLS = { Public: 'bg-success', Private: 'bg-warning text-dark', HiddenMembership: 'bg-info text-dark' };
+
+      listHtml = `
+      <div id="teamsListContainer" class="row g-3">
+        ${teamsData.teams.map(t => {
+          const vis = VISIB[t.visibility] || t.visibility || '—';
+          const visCls = VISIB_CLS[t.visibility] || 'bg-secondary';
+          return `
+            <div class="col-md-6 col-lg-6 teams-row">
+              <div class="border rounded p-3 h-100 position-relative">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div class="fw-semibold small pe-4">${esc(t.displayName)}</div>
+                  <span class="badge ${visCls} flex-shrink-0 ms-1">${vis}</span>
+                </div>
+                ${t.description ? `<div class="text-muted" style="font-size:.72rem;margin-bottom:.5rem">${esc(t.description.slice(0,80))}${t.description.length>80?'…':''}</div>` : ''}
+                <div class="position-absolute top-0 end-0 p-2">
+                  <button class="btn btn-sm btn-light text-danger btn-icon" title="Quitar de equipo" onclick="removeTeamsMember('${t.id}', '${tId}', this)">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+    } else if (teamsData) {
+      listHtml = '<div class="text-center text-muted py-4 empty-teams-msg">No pertenece a ningún equipo</div>';
+    } else {
+      listHtml = `
+        <div class="text-center py-4">
+          <i class="bi bi-person-x fs-1 text-muted opacity-50 d-block"></i>
+          <div class="small text-muted mt-2 mb-3">No existe en Teams</div>
+          <button class="btn btn-sm btn-primary" onclick="openTeamsCreate()"><i class="bi bi-person-plus me-1"></i>Crear perfil</button>
+        </div>`;
+    }
+
+    return `
+      <!-- Teams section -->
+      <div class="table-card mb-4">
+        <div class="card-header border-bottom-0 pb-0">
+          <i class="bi bi-microsoft-teams me-2" style="color:#6264a7"></i><strong>Microsoft Teams / Azure AD</strong>
+          <span id="teamsCountLabel" class="d-none"></span>
+        </div>
+        <div class="p-3">
           ${listHtml}
         </div>
       </div>
-    </div>`;
-}
+    `;
+  }
 
-// ==========================================
-// UTILIDADES UI (Loaders y Errores)
-// ==========================================
+  // ==========================================
+  // UTILIDADES UI (Loaders y Errores)
+  // ==========================================
 
-function setLoadingState() {
-  document.getElementById('unifiedResultsArea').innerHTML = `
+  function setLoadingState() {
+    document.getElementById('unifiedResultsArea').innerHTML = `
     <div class="p-4">
       <div class="d-flex gap-3 align-items-center mb-4">
         <div class="skeleton rounded-circle" style="width: 48px; height: 48px;"></div>
@@ -254,30 +329,30 @@ function setLoadingState() {
         </div>
       </div>
     </div>`;
-    
-  document.getElementById('unifiedDetailPane').innerHTML = `
+
+    document.getElementById('unifiedDetailPane').innerHTML = `
     <div class="d-flex align-items-center justify-content-center h-100 w-100 text-muted flex-column opacity-50 py-5">
       <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
       <p>Cargando perfiles...</p>
     </div>`;
-}
+  }
 
-function showErrorState(message) {
-  document.getElementById('unifiedResultsArea').innerHTML = `
+  function showErrorState(message) {
+    document.getElementById('unifiedResultsArea').innerHTML = `
     <div class="p-4 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error: ${message}</div>
   `;
-  document.getElementById('unifiedDetailPane').innerHTML = '';
-}
+    document.getElementById('unifiedDetailPane').innerHTML = '';
+  }
 
-// ==========================================
-// CRUD Y ACCIONES API
-// ==========================================
+  // ==========================================
+  // CRUD Y ACCIONES API
+  // ==========================================
 
-function openCanvasCreate() {
-  const query = document.getElementById('unifiedSearchInput').value.trim();
-  const isEmail = query.includes('@');
-  
-  showModal('Crear Usuario en Canvas', `
+  function openCanvasCreate() {
+    const query = document.getElementById('unifiedSearchInput').value.trim();
+    const isEmail = query.includes('@');
+
+    showModal('Crear Usuario en Canvas', `
     <form id="canvasCreateForm">
       <div class="row g-3">
         <div class="col-md-12"><label class="form-label">Nombre Completo *</label><input type="text" id="c_name" class="form-control" required></div>
@@ -287,99 +362,99 @@ function openCanvasCreate() {
         <div class="col-md-6"><label class="form-label">SIS ID</label><input type="text" id="c_sis" class="form-control" value="${!isEmail ? query : ''}"></div>
       </div>
     </form>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
      <button class="btn btn-success" id="c_saveBtn" onclick="saveCanvasUser()"><i class="bi bi-check-lg me-1"></i>Crear</button>`);
-}
-
-async function saveCanvasUser() {
-  const btn = document.getElementById('c_saveBtn');
-  const data = {
-    name: document.getElementById('c_name').value,
-    email: document.getElementById('c_email').value,
-    login_id: document.getElementById('c_login').value,
-    password: document.getElementById('c_pass').value || null,
-    sis_user_id: document.getElementById('c_sis').value || null
-  };
-  
-  if(!data.name || !data.email || !data.login_id) return toast('Completa los campos obligatorios (*)', 'warning');
-  
-  setLoading(btn, true);
-  try {
-    await api.post('/canvas/users', data);
-    toast('Usuario creado en Canvas correctamente', 'success');
-    closeModal();
-    searchUnified();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
-}
-
-async function unenrollCanvas(course_id, enrollment_id, btn) {
-  if (!confirm('¿Desmatricular usuario de este curso?')) return;
-  const originalHtml = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
-  btn.disabled = true;
-
-  try {
-    await api.del('/canvas/enrollments/' + enrollment_id + '?course_id=' + course_id + '&task=conclude');
-    toast('Usuario desmatriculado de Canvas', 'success');
-    
-    const row = btn.closest('.list-group-item');
-    row.style.transition = 'all 0.3s ease';
-    row.style.opacity = '0';
-    row.style.transform = 'translateX(20px)';
-    setTimeout(() => row.remove(), 300);
-  } catch(e) { 
-    toast('Error: ' + e.message, 'danger'); 
-    btn.innerHTML = originalHtml;
-    btn.disabled = false;
   }
-}
 
-async function removeTeamsMember(team_id, user_id, btn) {
-  if (!confirm('¿Quitar usuario de este equipo?')) return;
-  const originalHtml = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
-  btn.disabled = true;
+  async function saveCanvasUser() {
+    const btn = document.getElementById('c_saveBtn');
+    const data = {
+      name: document.getElementById('c_name').value,
+      email: document.getElementById('c_email').value,
+      login_id: document.getElementById('c_login').value,
+      password: document.getElementById('c_pass').value || null,
+      sis_user_id: document.getElementById('c_sis').value || null
+    };
 
-  try {
-    await api.post('/teams/teams/' + team_id + '/members/bulk-remove', { team_id: team_id, user_ids: [user_id] });
-    toast('Usuario removido del equipo en Teams', 'success');
-    
-    const row = btn.closest('.list-group-item');
-    row.style.transition = 'all 0.3s ease';
-    row.style.opacity = '0';
-    row.style.transform = 'translateX(20px)';
-    
-    setTimeout(() => {
-      row.remove();
-      const countLabel = document.getElementById('teamsCountLabel');
-      if (countLabel) {
-        const rows = document.querySelectorAll('.teams-row').length;
-        countLabel.innerHTML = `<i class="bi bi-microsoft-teams me-2"></i>Equipos (${rows})`;
-        if (rows === 0) {
-          const container = document.getElementById('teamsListContainer');
-          if (container) container.innerHTML = '<div class="list-group-item text-muted p-3 empty-teams-msg">No pertenece a ningún equipo</div>';
+    if (!data.name || !data.email || !data.login_id) return toast('Completa los campos obligatorios (*)', 'warning');
+
+    setLoading(btn, true);
+    try {
+      await api.post('/canvas/users', data);
+      toast('Usuario creado en Canvas correctamente', 'success');
+      closeModal();
+      searchUnified();
+    } catch (e) { toast('Error: ' + e.message, 'danger'); }
+    finally { setLoading(btn, false); }
+  }
+
+  async function unenrollCanvas(course_id, enrollment_id, btn) {
+    if (!confirm('¿Desmatricular usuario de este curso?')) return;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
+    btn.disabled = true;
+
+    try {
+      await api.del('/canvas/enrollments/' + enrollment_id + '?course_id=' + course_id + '&task=conclude');
+      toast('Usuario desmatriculado de Canvas', 'success');
+
+      const row = btn.closest('.list-group-item');
+      row.style.transition = 'all 0.3s ease';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(20px)';
+      setTimeout(() => row.remove(), 300);
+    } catch (e) {
+      toast('Error: ' + e.message, 'danger');
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
+  }
+
+  async function removeTeamsMember(team_id, user_id, btn) {
+    if (!confirm('¿Quitar usuario de este equipo?')) return;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
+    btn.disabled = true;
+
+    try {
+      await api.post('/teams/teams/' + team_id + '/members/bulk-remove', { team_id: team_id, user_ids: [user_id] });
+      toast('Usuario removido del equipo en Teams', 'success');
+
+      const row = btn.closest('.list-group-item');
+      row.style.transition = 'all 0.3s ease';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(20px)';
+
+      setTimeout(() => {
+        row.remove();
+        const countLabel = document.getElementById('teamsCountLabel');
+        if (countLabel) {
+          const rows = document.querySelectorAll('.teams-row').length;
+          countLabel.innerHTML = `<i class="bi bi-microsoft-teams me-2"></i>Equipos (${rows})`;
+          if (rows === 0) {
+            const container = document.getElementById('teamsListContainer');
+            if (container) container.innerHTML = '<div class="list-group-item text-muted p-3 empty-teams-msg">No pertenece a ningún equipo</div>';
+          }
         }
-      }
-    }, 300);
+      }, 300);
 
-  } catch(e) { 
-    toast('Error: ' + e.message, 'danger'); 
-    btn.innerHTML = originalHtml;
-    btn.disabled = false;
+    } catch (e) {
+      toast('Error: ' + e.message, 'danger');
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
   }
-}
 
-// ==========================================
-// CRUD: TEAMS
-// ==========================================
+  // ==========================================
+  // CRUD: TEAMS
+  // ==========================================
 
-function openTeamsCreate() {
-  const query = document.getElementById('unifiedSearchInput').value.trim();
-  const isEmail = query.includes('@');
-  const alias = isEmail ? query.split('@')[0] : '';
-  
-  showModal('Crear Usuario en Teams / Azure AD', `
+  function openTeamsCreate() {
+    const query = document.getElementById('unifiedSearchInput').value.trim();
+    const isEmail = query.includes('@');
+    const alias = isEmail ? query.split('@')[0] : '';
+
+    showModal('Crear Usuario en Teams / Azure AD', `
     <form id="teamsCreateForm">
       <div class="row g-3">
         <div class="col-md-12"><label class="form-label">Nombre Completo *</label><input type="text" id="t_display_name" class="form-control" required></div>
@@ -392,32 +467,32 @@ function openTeamsCreate() {
         </div>
       </div>
     </form>`,
-    `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      `<button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
      <button class="btn btn-primary" id="t_saveBtn" onclick="saveTeamsUser()"><i class="bi bi-check-lg me-1"></i>Crear en Teams</button>`);
-}
+  }
 
-async function saveTeamsUser() {
-  const btn = document.getElementById('t_saveBtn');
-  const form = document.getElementById('teamsCreateForm');
-  if (!form.checkValidity()) { form.reportValidity(); return; }
-  
-  const data = {
-    display_name: document.getElementById('t_display_name').value,
-    user_principal_name: document.getElementById('t_upn').value,
-    mail_nickname: document.getElementById('t_alias').value,
-    password: document.getElementById('t_pass').value,
-    usage_location: document.getElementById('t_loc').value,
-    account_enabled: document.getElementById('t_enabled').checked
-  };
-  
-  setLoading(btn, true);
-  try {
-    await api.post('/teams/users', data);
-    toast('Usuario creado en Teams/Azure AD correctamente', 'success');
-    closeModal();
-    searchUnified();
-  } catch(e) { toast('Error: ' + e.message, 'danger'); }
-  finally { setLoading(btn, false); }
-}
+  async function saveTeamsUser() {
+    const btn = document.getElementById('t_saveBtn');
+    const form = document.getElementById('teamsCreateForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const data = {
+      display_name: document.getElementById('t_display_name').value,
+      user_principal_name: document.getElementById('t_upn').value,
+      mail_nickname: document.getElementById('t_alias').value,
+      password: document.getElementById('t_pass').value,
+      usage_location: document.getElementById('t_loc').value,
+      account_enabled: document.getElementById('t_enabled').checked
+    };
+
+    setLoading(btn, true);
+    try {
+      await api.post('/teams/users', data);
+      toast('Usuario creado en Teams/Azure AD correctamente', 'success');
+      closeModal();
+      searchUnified();
+    } catch (e) { toast('Error: ' + e.message, 'danger'); }
+    finally { setLoading(btn, false); }
+  }
 </script>
 {% endblock %}
