@@ -34,6 +34,7 @@
       <button class="btn btn-sm btn-outline-secondary" onclick="setThisWeek()">Esta semana</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="setThisMonth()">Este mes</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">Limpiar filtros</button>
+      <button class="btn btn-sm btn-success ms-auto" onclick="exportJobs()"><i class="bi bi-file-earmark-excel me-1"></i>Exportar a Excel</button>
     </div>
   </div>
 
@@ -251,6 +252,21 @@ function clearFilters() {
   document.getElementById('jobType').value = '';
   document.getElementById('usernameFilter').value = '';
   loadJobs();
+}
+
+function exportJobs() {
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+  const jobType = document.getElementById('jobType').value;
+  const username = document.getElementById('usernameFilter').value;
+
+  const params = new URLSearchParams();
+  if (dateFrom) params.append('date_from', dateFrom);
+  if (dateTo) params.append('date_to', dateTo);
+  if (jobType) params.append('job_type', jobType);
+  if (username) params.append('username', username);
+
+  window.location.href = `/jobs/export?${params.toString()}`;
 }
 
 // Load on startup

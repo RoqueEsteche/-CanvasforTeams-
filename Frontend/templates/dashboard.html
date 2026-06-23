@@ -171,6 +171,31 @@
   </div>
 
 </div>
+<!-- ── Gráficos Visuales ── -->
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="table-card h-100">
+      <div class="card-header">
+        <i class="bi bi-pie-chart-fill text-canvas-blue dash-card-icon"></i>
+        <strong>Proporción de Usuarios</strong>
+      </div>
+      <div class="p-3 d-flex justify-content-center align-items-center" style="height: 250px;">
+        <canvas id="usersChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="table-card h-100">
+      <div class="card-header">
+        <i class="bi bi-bar-chart-fill text-canvas-teal dash-card-icon"></i>
+        <strong>Estado de Tareas</strong>
+      </div>
+      <div class="p-3 d-flex justify-content-center align-items-center" style="height: 250px;">
+        <canvas id="jobsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Quick actions + System status ── -->
 <div class="row g-3">
@@ -243,6 +268,7 @@
 
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const ACTION_ICONS = {
   create:       'bi-plus-circle-fill text-success',
@@ -327,15 +353,76 @@ async function loadStats() {
       }).join('');
       document.getElementById('last-courses').innerHTML =
         rows || '<div class="empty-state"><i class="bi bi-book"></i><p>Sin cursos</p></div>';
-    }).catch(() => {
-      document.getElementById('last-courses').innerHTML =
-        '<div class="text-danger small p-3">Error cargando cursos</div>';
+      loadCharts(s);
+    }).catch(err => {
+      document.getElementById('last-courses').innerHTML = `<div class="p-3 text-center text-danger small">Error: ${err.message}</div>`;
     });
 
   } catch(e) {
     ['cnt-cu','cnt-cc','cnt-tu','cnt-tt'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
+  }
+}
+
+let usersChartInstance = null;
+let jobsChartInstance = null;
+
+async function loadCharts(statsData) {
+  try {
+    const jobsRes = await api.get('/jobs/stats');
+    
+    // Config users chart
+    const uCtx = document.getElementById('usersChart').getContext('2d');
+    if (usersChartInstance) usersChartInstance.destroy();
+    
+    usersChartInstance = new Chart(uCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Canvas', 'Azure AD'],
+        datasets: [{
+          data: [statsData.canvas_users || 0, statsData.azure_users || 0],
+          backgroundColor: ['#4e73df', '#6f42c1'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+
+    // Config jobs chart
+    const jCtx = document.getElementById('jobsChart').getContext('2d');
+    if (jobsChartInstance) jobsChartInstance.destroy();
+    
+    jobsChartInstance = new Chart(jCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Completados', 'Con Errores', 'Fallidos'],
+        datasets: [{
+          label: 'Cantidad',
+          data: [jobsRes.completed || 0, jobsRes.with_errors || 0, jobsRes.failed || 0],
+          backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b'],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error loading charts:', err);
   }
 }
 

@@ -297,6 +297,9 @@ async def lookup_user_profile(
     else:
         result["teams"] = None
 
+    if not result.get("canvas") and not result.get("teams"):
+        raise HTTPException(status_code=404, detail=f"No se encontraron registros para '{identifier}' ni en Canvas ni en Teams.")
+
     return result
 
 

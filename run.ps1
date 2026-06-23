@@ -14,6 +14,7 @@ try {
 
 # Instalar/actualizar dependencias si es necesario
 Write-Host "Verificando dependencias..." -ForegroundColor Yellow
+cd Backend
 pip install -q -r requirements.txt
 
 Write-Host ""

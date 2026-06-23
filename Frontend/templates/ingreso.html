@@ -511,8 +511,8 @@ function openExcelCrear() {
     title: 'Creación en Conjunto (Excel)',
     columns: [
       { key: 'full_name', label: 'Nombre Completo', required: true, width: 200 },
-      { key: 'cedula', label: 'Cédula', required: true, width: 120 },
-      { key: 'personal_email', label: 'Email Personal', required: true, width: 200 },
+      { key: 'cedula', label: 'Cédula', required: true, width: 120, unique: true },
+      { key: 'personal_email', label: 'Email Personal', required: true, width: 200, unique: true },
       { key: 'role', label: 'Rol', required: false, width: 120, defaultValue: 'student', options: [{value: 'student', label: 'Estudiante'}, {value: 'teacher', label: 'Docente'}] },
       { key: 'platform', label: 'Plataforma', required: false, width: 140, defaultValue: 'both', options: [{value: 'both', label: 'Ambas (Canvas+Teams)'}, {value: 'canvas', label: 'Solo Canvas'}, {value: 'teams', label: 'Solo Teams'}] },
       { key: 'program_type', label: 'Programa', required: false, width: 120, defaultValue: 'grado', options: [{value: 'grado', label: 'Grado'}, {value: 'mba', label: 'MBA'}, {value: 'diplomado', label: 'Diplomado'}, {value: 'cpel', label: 'CPEL'}, {value: 'ga', label: 'GA'}, {value: 'gnd', label: 'GND'}] },
@@ -540,8 +540,8 @@ function openExcelReenviar() {
     title: 'Reenvío de Credenciales en Conjunto',
     columns: [
       { key: 'full_name', label: 'Nombre Completo', required: true, width: 200 },
-      { key: 'cedula', label: 'Cédula', required: true, width: 120 },
-      { key: 'personal_email', label: 'Email Personal', required: true, width: 200 },
+      { key: 'cedula', label: 'Cédula', required: true, width: 120, unique: true },
+      { key: 'personal_email', label: 'Email Personal', required: true, width: 200, unique: true },
       { key: 'platform', label: 'Plataforma', required: false, width: 140, defaultValue: 'both', options: [{value: 'both', label: 'Ambas'}, {value: 'canvas', label: 'Solo Canvas'}, {value: 'teams', label: 'Solo Teams'}] },
       { key: 'program_type', label: 'Programa', required: false, width: 120, defaultValue: 'grado', options: [{value: 'grado', label: 'Grado'}, {value: 'mba', label: 'MBA'}, {value: 'diplomado', label: 'Diplomado'}] },
       { key: 'program_name', label: 'Nombre del Programa', required: false, width: 250 }
@@ -565,7 +565,7 @@ function openExcelVerificar() {
   showSpreadsheet({
     title: 'Verificación en Conjunto',
     columns: [
-      { key: 'cedula', label: 'Cédula', required: true, width: 150 },
+      { key: 'cedula', label: 'Cédula', required: true, width: 150, unique: true },
       { key: 'full_name', label: 'Nombre Completo', required: false, width: 250 },
       { key: 'platform', label: 'Plataforma', required: false, width: 140, defaultValue: 'both', options: [{value: 'both', label: 'Ambas'}, {value: 'canvas', label: 'Solo Canvas'}, {value: 'teams', label: 'Solo Teams'}] }
     ],

@@ -12,18 +12,27 @@ _BASE = f"{settings.canvas_base_url.rstrip('/')}/api/v1"
 _HEADERS = {"Authorization": f"Bearer {settings.canvas_access_token}"}
 _TIMEOUT = httpx.Timeout(30.0)
 
-# Only retry transient network errors — never retry API-level HTTP errors (4xx/5xx).
-# Retrying an HTTPException just delays showing the real error to the user.
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+
+# Retry transient network errors and HTTP 429 (Too Many Requests) / 5xx errors.
 _TRANSIENT = (
     httpx.ConnectError,
     httpx.TimeoutException,
     httpx.RemoteProtocolError,
     httpx.ReadError,
 )
+
+def _should_retry(e: Exception) -> bool:
+    if isinstance(e, _TRANSIENT):
+        return True
+    if isinstance(e, HTTPException) and e.status_code in (429, 502, 503, 504):
+        return True
+    return False
+
 _retry = retry(
-    retry=retry_if_exception_type(_TRANSIENT),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception(_should_retry),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(min=1, max=16),
     reraise=True,
 )
 

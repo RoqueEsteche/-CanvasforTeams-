@@ -131,3 +131,47 @@ async def get_jobs_by_type(
     except Exception as exc:
         logger.error(f"Error retrieving jobs by type: {exc}")
         return {"jobs": [], "total": 0, "limit": limit, "offset": offset}
+
+@router.get("/export", summary="Exportar historial de trabajos a Excel")
+async def export_jobs(
+    job_type: Optional[str] = None,
+    username: Optional[str] = None,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """Export job history to Excel with current filters."""
+    from fastapi import HTTPException
+    from app.routers.excel import _excel_response
+    try:
+        result = await jobs.get_jobs(
+            limit=5000,
+            offset=0,
+            job_type=job_type,
+            username=username,
+            status=status,
+            date_from=date_from,
+            date_to=date_to
+        )
+        
+        rows = []
+        for job in result.get("jobs", []):
+            rows.append({
+                "ID": job.get("id"),
+                "Fecha": job.get("created_at"),
+                "Usuario": job.get("username"),
+                "Tipo": job.get("job_type"),
+                "Operación": job.get("operation"),
+                "Estado": job.get("status"),
+                "Resultados": job.get("result_count", 0),
+                "Errores": job.get("error_count", 0),
+                "Mensaje de Error": job.get("error_message", "")
+            })
+            
+        if not rows:
+            rows = [{"Info": "No hay datos para los filtros seleccionados"}]
+            
+        return _excel_response(rows, "historial_trabajos.xlsx")
+    except Exception as exc:
+        logger.error(f"Error exporting jobs: {exc}")
+        raise HTTPException(status_code=500, detail="Error exportando a Excel")

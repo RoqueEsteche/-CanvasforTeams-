@@ -158,10 +158,11 @@
         <div class="flex-grow-1">
           <h4 class="mb-0 fw-bold">${esc(displayName)}</h4>
           <div class="text-muted small mb-2">${esc(email)}</div>
-          <div class="d-flex flex-wrap gap-2">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
             ${canvasUser ? `<span class="badge bg-light text-dark border"><i class="bi bi-mortarboard-fill text-warning me-1"></i>Canvas SIS: ${esc(sis)}</span>` : ''}
             ${teamsUser ? `<span class="badge bg-light text-dark border"><i class="bi bi-person-badge-fill me-1" style="color:#6264a7"></i>${esc(teamsUser.jobTitle || teamsUser.department || 'Azure AD')}</span>` : ''}
             ${tStatus}
+            ${teamsUser ? `<button class="btn btn-sm btn-outline-danger ms-auto" onclick="promptResetTeamsPassword('${teamsUser.id}')"><i class="bi bi-key-fill me-1"></i>Restablecer Contraseña (Teams)</button>` : ''}
           </div>
         </div>
       </div>
@@ -350,6 +351,48 @@
   // ==========================================
   // CRUD Y ACCIONES API
   // ==========================================
+
+  function promptResetTeamsPassword(userId) {
+    showModal('Restablecer Contraseña (Teams)', `
+      <div class="mb-3">
+        <label class="form-label text-muted small">Ingresa la nueva contraseña temporal</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-key"></i></span>
+          <input type="text" id="newTeamsPassword" class="form-control" placeholder="Ej: Usil2026.!" required minlength="8">
+        </div>
+        <div class="form-text text-warning mt-2">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> El usuario deberá cambiarla obligatoriamente al iniciar sesión.
+        </div>
+      </div>
+    `, `
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button class="btn btn-danger" id="btnResetTeamsPass" onclick="submitResetTeamsPassword('${userId}')">
+        <i class="bi bi-shield-lock me-1"></i>Restablecer
+      </button>
+    `);
+  }
+
+  async function submitResetTeamsPassword(userId) {
+    const pwdInput = document.getElementById('newTeamsPassword');
+    const pwd = pwdInput.value;
+    if (!pwd || pwd.length < 8) {
+      toast('La contraseña debe tener al menos 8 caracteres', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btnResetTeamsPass');
+    setLoading(btn, true);
+    
+    try {
+      await api.post('/teams/users/' + userId + '/reset-password', { password: pwd });
+      toast('Contraseña de Teams restablecida con éxito', 'success');
+      closeModal();
+    } catch (e) {
+      toast('Error al restablecer contraseña: ' + e.message, 'danger');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
 
   function openCanvasCreate() {
     const query = document.getElementById('unifiedSearchInput').value.trim();

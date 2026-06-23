@@ -51,6 +51,15 @@ def init_jobs_db():
         CREATE INDEX IF NOT EXISTS idx_status ON jobs(status)
     """)
 
+    # Limpiar trabajos colgados (zombies) de una ejecución anterior
+    cursor.execute("""
+        UPDATE jobs
+        SET status = 'failed',
+            completed_at = CURRENT_TIMESTAMP,
+            error_message = 'El servidor se reinició inesperadamente durante la ejecución.'
+        WHERE status IN ('pending', 'processing')
+    """)
+
     conn.commit()
     conn.close()
 

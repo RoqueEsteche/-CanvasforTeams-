@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from app.services import auth as auth_service
 
 router = APIRouter(tags=["Web UI"])
-_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+_TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "Frontend" / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 

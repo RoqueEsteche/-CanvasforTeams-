@@ -538,6 +538,9 @@ function showSpreadsheet(cfg) {
       <div id="ss-results"></div>
     </div>`,
     `<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button type="button" class="btn btn-info px-3 text-white" id="ss-validate-btn" onclick="_ssDoValidate()">
+       <i class="bi bi-magic me-1"></i>Validar datos
+     </button>
      <button type="button" class="btn btn-primary px-4" id="ss-import-btn" onclick="_ssDoImport()">
        <i class="bi bi-upload me-1"></i>Importar datos
      </button>`
@@ -736,28 +739,74 @@ function _ssGetRows() {
   return rows;
 }
 
-/* ── Importar ── */
+/* ── Importar / Validar ── */
+
+function _ssRunValidation(rawRows) {
+  // Limpiar marcas de error previas
+  document.querySelectorAll('#ss-body .ss-cell-error').forEach(el => el.classList.remove('ss-cell-error'));
+  document.querySelectorAll('.ss-status-cell').forEach(el => el.innerHTML = '');
+
+  let hasErrors = false;
+  let errorMsg = 'Completá los campos obligatorios (marcados en rojo)';
+
+  const uniqueVals = {};
+  _ss.cfg.columns.forEach((col, ci) => {
+    if (col.unique) uniqueVals[ci] = new Set();
+  });
+
+  rawRows.forEach(row => {
+    _ss.cfg.columns.forEach((col, ci) => {
+      const val = row[col.key];
+      let cellErr = false;
+      
+      // Obligatorios
+      if (col.required && !val) {
+        cellErr = true;
+      }
+      
+      // Duplicados
+      if (col.unique && val) {
+        if (uniqueVals[ci].has(val)) {
+          cellErr = true;
+          errorMsg = 'Existen valores duplicados en columnas únicas (marcados en rojo)';
+        } else {
+          uniqueVals[ci].add(val);
+        }
+      }
+      
+      if (cellErr) {
+        hasErrors = true;
+        row._tr?.querySelector(`.ss-cell[data-c="${ci}"]`)?.classList.add('ss-cell-error');
+      }
+    });
+  });
+  
+  return { hasErrors, errorMsg };
+}
+
+function _ssDoValidate() {
+  if (!_ss) return;
+  const rawRows = _ssGetRows();
+  if (!rawRows.length) { toast('No hay datos para validar', 'warning'); return; }
+
+  const { hasErrors, errorMsg } = _ssRunValidation(rawRows);
+
+  if (hasErrors) {
+    document.getElementById('ss-results').innerHTML = `<div class="alert alert-warning mt-2 py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${errorMsg}</div>`;
+    toast(errorMsg, 'warning');
+  } else {
+    document.getElementById('ss-results').innerHTML = `<div class="alert alert-success mt-2 py-2 small"><i class="bi bi-check-circle-fill me-1"></i>Datos válidos. Todo listo para importar.</div>`;
+    toast('Los datos pasaron la validación previa', 'success');
+  }
+}
 
 async function _ssDoImport() {
   if (!_ss) return;
   const rawRows = _ssGetRows();
   if (!rawRows.length) { toast('No hay datos para importar', 'warning'); return; }
 
-  // Limpiar marcas de error previas
-  document.querySelectorAll('#ss-body .ss-cell-error').forEach(el => el.classList.remove('ss-cell-error'));
-  document.querySelectorAll('.ss-status-cell').forEach(el => el.innerHTML = '');
-
-  // Validar campos obligatorios
-  let hasErrors = false;
-  rawRows.forEach(row => {
-    _ss.cfg.columns.forEach((col, ci) => {
-      if (col.required && !row[col.key]) {
-        hasErrors = true;
-        row._tr?.querySelector(`.ss-cell[data-c="${ci}"]`)?.classList.add('ss-cell-error');
-      }
-    });
-  });
-  if (hasErrors) { toast('Completá los campos obligatorios (marcados en rojo)', 'warning'); return; }
+  const { hasErrors, errorMsg } = _ssRunValidation(rawRows);
+  if (hasErrors) { toast(errorMsg, 'warning'); return; }
 
   // Limpiar _tr antes de enviar a la API
   const cleanRows = rawRows.map(({ _tr, ...rest }) => rest);

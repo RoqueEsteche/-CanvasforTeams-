@@ -159,6 +159,31 @@ async def update_user(user_id: str, body: TeamsUserUpdate):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+class ResetPasswordPayload(BaseModel):
+    password: str
+
+
+@router.post("/{user_id}/reset-password", summary="Restablecer contraseña de un usuario en Teams")
+async def reset_password_admin(user_id: str, body: ResetPasswordPayload, request: Request):
+    payload = {
+        "passwordProfile": {
+            "forceChangePasswordNextSignIn": True,
+            "password": body.password,
+        }
+    }
+    try:
+        await graph.patch(f"/users/{user_id}", payload)
+        req_user = auth_service.get_user_from_request(request) if hasattr(request, "cookies") else None
+        audit.log("update", "teams_reset_password",
+                  user=req_user.get("email", "?") if req_user else "api",
+                  detail=f"Contraseña de {user_id} restablecida por admin")
+        return {"status": "success", "user_id": user_id}
+    except StarletteHTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.delete("/bulk", summary="Eliminar usuarios de Azure AD en masa")
 async def delete_users_bulk(body: BulkDeleteRequest, request: Request) -> BulkResult:
     result = BulkResult()

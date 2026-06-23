@@ -30,7 +30,6 @@ from app.routers import (
     ingreso,
     jobs,
     profile,
-    sync,
     web,
 )
 import asyncio
@@ -38,8 +37,8 @@ from app.routers.teams import teams_mgmt, users as teams_users
 
 # Setup paths
 BASE_DIR = Path(__file__).parent
-STATIC_DIR = BASE_DIR / "static"
-TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR.parent.parent / "Frontend" / "static"
+TEMPLATES_DIR = BASE_DIR.parent.parent / "Frontend" / "templates"
 
 
 # Initialize databases on startup
