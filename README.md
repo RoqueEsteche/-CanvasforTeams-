@@ -2,6 +2,8 @@
 
 Sistema integral de gestión para Canvas LMS y Microsoft Teams con control de asistencias, usuarios, matrículas y auditoría completa.
 
+🔗 **Producción (Live):** [https://claudecode-canvasforteams-production.up.railway.app/](https://claudecode-canvasforteams-production.up.railway.app/)
+
 ---
 
 ## 🚀 Inicio Rápido
