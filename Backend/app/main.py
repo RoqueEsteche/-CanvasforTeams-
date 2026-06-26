@@ -20,6 +20,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from app.services import auth as auth_service
+from app.services import auto_sync as auto_sync
 from app.core import database, cache as _cache
 from app.core.config import settings
 from app.routers import (
@@ -32,6 +34,9 @@ from app.routers import (
     profile,
     web,
     sync,
+    egreso,
+    sspr,
+    analytics,
 )
 import asyncio
 from app.routers.teams import teams_mgmt, users as teams_users
@@ -54,7 +59,14 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(init_jobs_db)
     except Exception as e:
         logger.error(f"Failed to initialize databases: {e}")
+        
+    logger.info("Starting auto_sync background job...")
+    auto_sync.start_auto_sync()
+    
     yield
+    
+    logger.info("Stopping auto_sync background job...")
+    auto_sync.stop_auto_sync()
 
 # Create FastAPI app
 app = FastAPI(
@@ -145,6 +157,9 @@ routers_to_load = [
     ("Canvas", canvas.router),
     ("Excel", excel.router),
     ("Ingreso", ingreso.router),
+    ("Egreso", egreso.router),
+    ("SSPR", sspr.router),
+    ("Analytics", analytics.router),
     ("Jobs", jobs.router),
     ("Profile", profile.router),
     ("Audit", audit.router),

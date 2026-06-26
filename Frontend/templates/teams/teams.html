@@ -322,6 +322,7 @@ function viewTeamDetail(teamId, name) {
         <option value="owner">Owner</option>
       </select>
       <button class="btn btn-success" onclick="addMember('${teamId}')"><i class="bi bi-plus"></i> Añadir</button>
+      <button class="btn btn-outline-primary" onclick="openBulkAddModal('${teamId}')"><i class="bi bi-people"></i> Carga Múltiple</button>
     </div>
     <div id="memberTable"><div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div></div>`,
     `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`);
@@ -504,5 +505,78 @@ function openExcelMembers() {
 }
 
 loadTeams();
+
+// --- BULK ADD MULTIPLE USERS ---
+let _bulkAddPicked = [];
+let _currentTeamId = null;
+
+function openBulkAddModal(teamId) {
+    _currentTeamId = teamId;
+    _bulkAddPicked = [];
+    showModal('Añadir Múltiples Miembros', `
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Buscar usuarios para agregar</label>
+        <div class="d-flex gap-2">
+            <div class="autocomplete-container" style="flex:1;">
+                <input type="text" class="form-control" id="bulk_search_user" placeholder="Buscar por nombre o email..." autocomplete="off">
+                <input type="hidden" id="bulk_add_user_id">
+                <div class="autocomplete-dropdown" id="bulk_add_user_results"></div>
+            </div>
+            <select class="form-select" id="bulkRole" style="max-width:140px">
+                <option value="member">Miembro</option>
+                <option value="owner">Owner</option>
+            </select>
+            <button class="btn btn-primary" onclick="addBulkPickedUser()"><i class="bi bi-plus"></i> Seleccionar</button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <h6>Usuarios Seleccionados:</h6>
+        <div id="bulkPickedContainer" class="p-3 bg-light rounded" style="min-height:60px">
+           <span class="text-muted small">No hay usuarios seleccionados</span>
+        </div>
+      </div>
+    `, `
+      <button class="btn btn-secondary" onclick="viewTeamDetail('${teamId}', 'Equipo')">Volver</button>
+      <button class="btn btn-success" onclick="saveBulkAdd()"><i class="bi bi-save"></i> Guardar Cambios</button>
+    `);
+    
+    setupAutocomplete('bulk_search_user', 'bulk_add_user_id', 'bulk_add_user_results', '/teams/users', 
+        (u) => `<div class="autocomplete-title">${u.displayName}</div><div class="autocomplete-sub">${u.userPrincipalName || 'Sin email'}</div>`,
+        (u, input, hidden) => { input.value = u.displayName; hidden.value = u.id; input.dataset.upn = u.userPrincipalName; }
+    );
+}
+
+function addBulkPickedUser() {
+    const hidden = document.getElementById('bulk_add_user_id');
+    const input = document.getElementById('bulk_search_user');
+    const roleSel = document.getElementById('bulkRole');
+    if(!hidden.value) { toast('Debe seleccionar un usuario', 'warning'); return; }
+    const id = hidden.value;
+    const name = input.value;
+    const upn = input.dataset.upn;
+    const role = roleSel.value;
+    if (!_bulkAddPicked.find(u => u.id === id)) { _bulkAddPicked.push({id, name, upn, role}); renderBulkPicked(); }
+    hidden.value = ''; input.value = ''; input.dataset.upn = '';
+}
+
+function renderBulkPicked() {
+    const container = document.getElementById('bulkPickedContainer');
+    if (_bulkAddPicked.length === 0) { container.innerHTML = '<span class="text-muted small">No hay usuarios seleccionados</span>'; return; }
+    container.innerHTML = _bulkAddPicked.map(u => 
+        `<span class="badge bg-${u.role === 'owner' ? 'warning text-dark' : 'primary'} me-1 mb-1" style="font-size:.78rem">${u.name} (${u.role}) <button type="button" class="btn-close ms-1" style="font-size:.5rem" onclick="removeBulkPicked('${u.id}')"></button></span>`
+    ).join('');
+}
+
+function removeBulkPicked(id) { _bulkAddPicked = _bulkAddPicked.filter(u => u.id !== id); renderBulkPicked(); }
+
+async function saveBulkAdd() {
+    if (_bulkAddPicked.length === 0) { toast('No has seleccionado a nadie.', 'warning'); return; }
+    try {
+        const payload = { team_id: _currentTeamId, members: _bulkAddPicked.map(u => ({ user_id: u.id, role: u.role })) };
+        await api.post(`/teams/teams/${_currentTeamId}/members/bulk-add`, payload);
+        toast('Añadidos en lote con éxito.', 'success');
+        viewTeamDetail(_currentTeamId, 'Equipo');
+    } catch(e) { toast('Error agregando: ' + e.message, 'danger'); }
+}
 </script>
 {% endblock %}

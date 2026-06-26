@@ -615,6 +615,7 @@ async def test_email(
             platform="both",
             program_type=program_type,
             program_name=program_name,
+            attachments=get_program_attachments(program_type)
         )
         return {
             "status": "ok",

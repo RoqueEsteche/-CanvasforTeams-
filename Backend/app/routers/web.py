@@ -77,6 +77,31 @@ async def teams_teams(request: Request):
     return _r(request, "teams/teams.html")
 
 
+@router.get("/ingreso", response_class=HTMLResponse, summary="UI: Nuevo Ingreso")
+async def ui_onboarding(request: Request):
+    """Página de creación unificada de usuarios (Canvas + Teams)."""
+    return templates.TemplateResponse(
+        "unified_enrollments.html",
+        {
+            "request": request,
+            "page_title": "Nuevo Ingreso",
+            "active_page": "ingreso"
+        }
+    )
+
+@router.get("/egreso", response_class=HTMLResponse, summary="UI: Desvinculación Unificada")
+async def ui_offboarding(request: Request):
+    """Página de desvinculación unificada de usuarios (Canvas + Teams)."""
+    return templates.TemplateResponse(
+        "unified_offboarding.html",
+        {
+            "request": request,
+            "page_title": "Desvinculación Unificada",
+            "active_page": "egreso"
+        }
+    )
+
+
 @router.get("/ui/ingreso", response_class=HTMLResponse)
 async def ingreso_page(request: Request):
     user = _current_user(request)

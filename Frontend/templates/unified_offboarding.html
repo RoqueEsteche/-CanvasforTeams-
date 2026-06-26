@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Desvinculación (Offboarding) | Canvas for Teams{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+  <div class="col-auto">
+    <h1 class="h3 mb-0 text-danger"><i class="bi bi-person-x-fill me-2"></i>Desvinculación Unificada</h1>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card shadow-sm border-danger mb-4">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-search me-2"></i>Buscar Usuario a Desvincular</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label text-danger fw-bold">Nombre del Docente o Alumno</label>
+          <input type="text" class="form-control border-danger" id="searchInput" placeholder="Escriba para buscar en Canvas..." autocomplete="off">
+          <div id="searchSpinner" class="spinner-border spinner-border-sm text-danger mt-2" style="display:none;" role="status"></div>
+        </div>
+        
+        <div class="mb-3 row">
+          <div class="col">
+            <label class="form-label text-muted">ID SIS / Cédula</label>
+            <input type="text" class="form-control" id="sysInput" readonly>
+          </div>
+          <div class="col">
+            <label class="form-label text-muted">Email Institucional</label>
+            <input type="email" class="form-control" id="emailInput" readonly>
+          </div>
+        </div>
+        
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Esta acción <strong>suspenderá</strong> la cuenta en Canvas y <strong>deshabilitará</strong> el inicio de sesión en Microsoft Teams. No se borrarán los historiales de calificaciones.
+        </div>
+
+        <div class="d-grid mt-4">
+            <button class="btn btn-danger btn-lg" id="btnExecute" onclick="executeOffboarding()" disabled>
+                <i class="bi bi-person-x-fill me-2"></i>Ejecutar Desvinculación
+            </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let searchTimeout;
+
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const q = e.target.value.trim();
+    clearTimeout(searchTimeout);
+    
+    document.getElementById('btnExecute').disabled = true;
+    document.getElementById('sysInput').value = '';
+    document.getElementById('emailInput').value = '';
+
+    if (q.length < 3) return;
+    
+    document.getElementById('searchSpinner').style.display = 'inline-block';
+    searchTimeout = setTimeout(() => fetchUser(q), 500);
+});
+
+async function fetchUser(query) {
+    const spinner = document.getElementById('searchSpinner');
+    const input = document.getElementById('searchInput');
+    const btnExecute = document.getElementById('btnExecute');
+    
+    input.disabled = true;
+    
+    try {
+        const res = await fetch('/ingreso/find_user?query=' + encodeURIComponent(query));
+        if (res.ok) {
+            const data = await res.json();
+            if (data.sis_user_id) {
+                document.getElementById('sysInput').value = data.sis_user_id;
+                document.getElementById('emailInput').value = data.email || '';
+                input.value = data.name;
+                toast("Usuario validado: " + data.name, 'success');
+                btnExecute.disabled = false;
+            } else if (data.detail || data.error) {
+                toast(data.detail || data.error, 'danger');
+            } else {
+                toast("Usuario no encontrado", 'warning');
+            }
+        } else {
+            const err = await res.json();
+            toast(err.detail || 'Error al conectar con Canvas', 'danger');
+        }
+    } catch (err) {
+        toast("Error de red al buscar usuario", 'danger');
+    } finally {
+        spinner.style.display = 'none';
+        input.disabled = false;
+    }
+}
+
+async function executeOffboarding() {
+    const sysId = document.getElementById('sysInput').value;
+    const btn = document.getElementById('btnExecute');
+    
+    if (!sysId) {
+        toast("Busque y seleccione un usuario primero.", "warning");
+        return;
+    }
+    
+    if (!confirm("¿Está absolutamente seguro de suspender este usuario en Teams y Canvas?")) {
+        return;
+    }
+    
+    btn.innerText = "Procesando...";
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/egreso/suspend?sys_user_id=' + encodeURIComponent(sysId), {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            let msg = `Canvas: ${data.canvas} | Teams: ${data.teams}`;
+            toast("Proceso finalizado. " + msg, "success");
+            // Limpiar inputs
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sysInput').value = '';
+            document.getElementById('emailInput').value = '';
+        } else {
+            toast(data.detail || "Error en el servidor", "danger");
+            btn.disabled = false;
+        }
+    } catch (err) {
+        toast("Error de red: " + err.message, "danger");
+        btn.disabled = false;
+    } finally {
+        btn.innerHTML = '<i class="bi bi-person-x-fill me-2"></i>Ejecutar Desvinculación';
+    }
+}
+</script>
+{% endblock %}

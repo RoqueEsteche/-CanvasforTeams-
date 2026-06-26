@@ -38,7 +38,7 @@ _UBS_CONTACT = """
   <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:lflorentin@usil.edu.py">lflorentin@usil.edu.py</a></td></tr>
   <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:glezcano@usil.edu.py">glezcano@usil.edu.py</a></td></tr>
   <tr><td style="padding:2px 0;">✉ Correo</td><td style="padding:2px 8px;"><a href="mailto:resteche@usil.edu.py">resteche@usil.edu.py</a></td></tr>
-  <tr><td style="padding:2px 0;">📱 WhatsApp corporativo</td><td style="padding:2px 8px;">0991 856 488</td></tr>
+  <tr><td style="padding:2px 0;">📱 WhatsApp corporativo</td><td style="padding:2px 8px;"><a href="https://wa.me/595991856488" style="color:#4e73df;text-decoration:none;font-weight:bold;">0991 856 488</a></td></tr>
 </table>
 <p style="color:#4a5568;font-size:.85rem;margin-top:16px;">
   Quedamos atentos a cualquier consulta relacionada con TI y le deseamos mucho éxito en sus estudios.<br><br>
@@ -198,7 +198,7 @@ def _html_diplomado(full_name: str, usuario: str, contrasena: str,
     {_cred_table(usuario, contrasena)}
     {_platform_btn("Acceder a Microsoft Teams", _TEAMS_URL, "#6264A7")}
 
-    {_warning_box("Le recomendamos cambiar su contraseña la primera vez que ingrese a la plataforma.")}
+    {_warning_box("Las contraseñas proporcionadas son directamente generadas por el departamento de tecnologia, ante cualquier error en su cuenta, comuniquese con IT.")}
 
     <p style="color:#4a5568;font-size:.85rem;margin-top:12px;">
       Adjunto encontrará los instructivos de Teams.

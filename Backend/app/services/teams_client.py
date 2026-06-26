@@ -332,3 +332,24 @@ async def post_team(payload: dict, poll_timeout: int = 60) -> dict:
         except Exception:
             detail = r.text[:300]
         raise RuntimeError(f"POST /teams failed ({r.status_code}): {detail}")
+
+@_retry
+async def update_user_password(user_id_or_upn: str, new_password: str) -> None:
+    """Resets the user's password in Azure AD. Requires User.ReadWrite.All permission."""
+    payload = {
+        "passwordProfile": {
+            "forceChangePasswordNextSignIn": True,
+            "password": new_password
+        }
+    }
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.patch(f"{_GRAPH}/users/{user_id_or_upn}", headers=_headers(), json=payload)
+        _raise(r)
+
+@_retry
+async def get_subscribed_skus() -> list:
+    """Gets the license SKUs available in the tenant."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.get(f"{_GRAPH}/subscribedSkus", headers=_headers())
+        _raise(r)
+        return r.json().get("value", [])

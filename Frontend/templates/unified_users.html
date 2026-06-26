@@ -466,24 +466,25 @@
       await api.post('/teams/teams/' + team_id + '/members/bulk-remove', { team_id: team_id, user_ids: [user_id] });
       toast('Usuario removido del equipo en Teams', 'success');
 
-      const row = btn.closest('.list-group-item');
-      row.style.transition = 'all 0.3s ease';
-      row.style.opacity = '0';
-      row.style.transform = 'translateX(20px)';
+      const row = btn.closest('.teams-row');
+      if (row) {
+        row.style.transition = 'all 0.3s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(20px)';
 
-      setTimeout(() => {
-        row.remove();
-        const countLabel = document.getElementById('teamsCountLabel');
-        if (countLabel) {
-          const rows = document.querySelectorAll('.teams-row').length;
-          countLabel.innerHTML = `<i class="bi bi-microsoft-teams me-2"></i>Equipos (${rows})`;
-          if (rows === 0) {
-            const container = document.getElementById('teamsListContainer');
-            if (container) container.innerHTML = '<div class="list-group-item text-muted p-3 empty-teams-msg">No pertenece a ningún equipo</div>';
+        setTimeout(() => {
+          row.remove();
+          const countLabel = document.getElementById('teamsCountLabel');
+          if (countLabel) {
+            const rows = document.querySelectorAll('.teams-row').length;
+            countLabel.innerHTML = `<i class="bi bi-microsoft-teams me-2"></i>Equipos (${rows})`;
+            if (rows === 0) {
+              const cont = document.getElementById('teamsContainer');
+              if (cont) cont.innerHTML = '<div class="text-center text-muted py-4 empty-teams-msg">No pertenece a ningún equipo</div>';
+            }
           }
-        }
-      }, 300);
-
+        }, 300);
+      }
     } catch (e) {
       toast('Error: ' + e.message, 'danger');
       btn.innerHTML = originalHtml;
