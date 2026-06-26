@@ -511,7 +511,7 @@ async def _create_student(student: StudentIn) -> dict[str, Any]:
                             "enrollment": {
                                 "user_id": canvas_id,
                                 "type": "StudentEnrollment" if student.role == "student" else "TeacherEnrollment",
-                                "enrollment_state": "active",
+                                "enrollment_state": "invited",
                                 "notify": True
                             }
                         }

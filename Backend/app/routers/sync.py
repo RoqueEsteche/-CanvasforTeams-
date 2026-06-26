@@ -115,7 +115,7 @@ async def _enroll_single(item: UnifiedEnrollment):
         "enrollment": {
             "user_id": canvas_user_id,
             "type": canvas_role,
-            "enrollment_state": "active",
+            "enrollment_state": "invited",
             "notify": True
         }
     }

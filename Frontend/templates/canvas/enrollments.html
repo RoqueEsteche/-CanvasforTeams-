@@ -318,7 +318,7 @@ function openExcelEnroll() {
               enrollments: enrs.map(r => ({
                 user_id: r.user_id,
                 type: r.type || 'StudentEnrollment',
-                enrollment_state: r.enrollment_state || 'active',
+                enrollment_state: r.enrollment_state || 'invited',
                 notify: true,
               })),
             });
@@ -360,7 +360,7 @@ function openExcelEnroll() {
         enrollments: rows.map(r => ({
           user_id:          r.user_id,
           type:             r.type             || 'StudentEnrollment',
-          enrollment_state: r.enrollment_state || 'active',
+          enrollment_state: r.enrollment_state || 'invited',
           notify: true,
         })),
       });

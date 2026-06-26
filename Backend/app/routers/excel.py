@@ -323,7 +323,7 @@ async def import_canvas_enrollments(file: UploadFile = File(...)) -> BulkResult:
             course_id = _get(row, "id_curso", "course_id")
             user_id   = _get(row, "id_usuario", "user_id")
             rol       = _get(row, "rol", "type") or "StudentEnrollment"
-            estado    = _get(row, "estado", "enrollment_state") or "active"
+            estado    = _get(row, "estado", "enrollment_state") or "invited"
             notif_raw = _get(row, "notificar", "notify") or ""
 
             if not course_id or not user_id:
