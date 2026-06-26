@@ -17,17 +17,23 @@
   </div>
   <div class="card-body">
     <form id="enrollForm" onsubmit="event.preventDefault(); doEnrollUnified();">
-      <div class="mb-3">
-        <label class="form-label">Identificador de Usuario *</label>
-        <input type="text" class="form-control" name="user_identifier" required placeholder="Email o C.I.">
+      <div class="mb-3 autocomplete-container">
+        <label class="form-label">Usuario (Canvas / Teams) *</label>
+        <input type="text" class="form-control" id="search_user" required placeholder="Buscar por nombre, email o C.I..." autocomplete="off">
+        <input type="hidden" name="user_identifier" id="user_identifier" required>
+        <div class="autocomplete-dropdown" id="user_results"></div>
       </div>
-      <div class="mb-3">
-        <label class="form-label">ID Curso Canvas *</label>
-        <input type="text" class="form-control" name="canvas_course_id" required placeholder="Ej. 10245">
+      <div class="mb-3 autocomplete-container">
+        <label class="form-label">Curso Canvas *</label>
+        <input type="text" class="form-control" id="search_course" required placeholder="Buscar curso por nombre..." autocomplete="off">
+        <input type="hidden" name="canvas_course_id" id="canvas_course_id" required>
+        <div class="autocomplete-dropdown" id="course_results"></div>
       </div>
-      <div class="mb-3">
-        <label class="form-label">ID Equipo Teams *</label>
-        <input type="text" class="form-control" name="teams_team_id" required placeholder="Ej. a1b2c3d4-...">
+      <div class="mb-3 autocomplete-container">
+        <label class="form-label">Equipo Teams *</label>
+        <input type="text" class="form-control" id="search_team" required placeholder="Buscar equipo por nombre..." autocomplete="off">
+        <input type="hidden" name="teams_team_id" id="teams_team_id" required>
+        <div class="autocomplete-dropdown" id="team_results"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Rol *</label>
@@ -66,6 +72,24 @@ async function doEnrollUnified() {
     setLoading(btn, false);
   }
 }
+
+// Configurar Autocompletado
+document.addEventListener('DOMContentLoaded', () => {
+  setupAutocomplete('search_user', 'user_identifier', 'user_results', '/canvas/users', 
+    (u) => `<div class="autocomplete-title">${u.name}</div><div class="autocomplete-sub">${u.login_id || u.email || 'Sin email'}</div>`,
+    (u, input, hidden) => { input.value = u.name; hidden.value = u.login_id || u.email; }
+  );
+  
+  setupAutocomplete('search_course', 'canvas_course_id', 'course_results', '/canvas/courses', 
+    (c) => `<div class="autocomplete-title">${c.name}</div><div class="autocomplete-sub">ID: ${c.id} | SIS: ${c.sis_course_id || '-'}</div>`,
+    (c, input, hidden) => { input.value = c.name; hidden.value = c.id; }
+  );
+  
+  setupAutocomplete('search_team', 'teams_team_id', 'team_results', '/teams/teams', 
+    (t) => `<div class="autocomplete-title">${t.displayName}</div><div class="autocomplete-sub">ID: ${t.id}</div>`,
+    (t, input, hidden) => { input.value = t.displayName; hidden.value = t.id; }
+  );
+});
 
 function openExcelUnifiedEnroll() {
   showSpreadsheet({

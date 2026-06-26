@@ -14,7 +14,7 @@
 
 <div class="table-card">
   <div class="card-header flex-wrap gap-2">
-    <input type="text" id="searchTeam" class="form-control search-box" placeholder="🔍 Buscar Team..." oninput="filterTable('searchTeam','tableWrap')">
+    <input type="text" id="searchTeam" class="form-control search-box" placeholder="🔍 Buscar Team por nombre..." oninput="debouncedLoadTeams(this.value)">
     <span class="ms-auto text-muted small" id="teamCount"></span>
     <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('tableWrap','teams_equipos.xlsx')" title="Exportar a Excel" aria-label="Exportar a Excel"><i class="bi bi-file-earmark-arrow-down"></i></button>
     <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadTeams()" title="Recargar" aria-label="Recargar lista"><i class="bi bi-arrow-clockwise"></i></button>
@@ -27,9 +27,17 @@
 
 {% block scripts %}
 <script>
-async function loadTeams() {
+let _teamSearchTimer = null;
+function debouncedLoadTeams(query) {
+  clearTimeout(_teamSearchTimer);
+  _teamSearchTimer = setTimeout(() => loadTeams(query), 400);
+}
+
+async function loadTeams(query = '') {
   try {
-    const teams = await api.get('/teams/teams?top=100');
+    document.getElementById('tableWrap').innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span></div>';
+    const url = query ? `/teams/teams?search_term=${encodeURIComponent(query)}&top=100` : '/teams/teams?top=100';
+    const teams = await api.get(url);
     document.getElementById('teamCount').textContent = teams.length + ' Teams';
 
     const html = `<table class="table table-sm table-hover mb-0">
@@ -304,7 +312,11 @@ function showTeamReport(res) {
 function viewTeamDetail(teamId, name) {
   showModal('Miembros: ' + name, `
     <div class="mb-3 d-flex gap-2 flex-wrap">
-      <input class="form-control" id="addUserId" placeholder="ID de usuario Azure AD" style="max-width:300px">
+      <div class="autocomplete-container" style="flex:1; max-width:300px">
+        <input type="text" class="form-control" id="search_add_user" placeholder="Buscar usuario..." autocomplete="off">
+        <input type="hidden" id="addUserId">
+        <div class="autocomplete-dropdown" id="add_user_results"></div>
+      </div>
       <select class="form-select" id="addRole" style="max-width:140px">
         <option value="member">Miembro</option>
         <option value="owner">Owner</option>
@@ -313,6 +325,13 @@ function viewTeamDetail(teamId, name) {
     </div>
     <div id="memberTable"><div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div></div>`,
     `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`);
+  
+  // Configurar autocompletado para usuarios de Azure AD
+  setupAutocomplete('search_add_user', 'addUserId', 'add_user_results', '/teams/users', 
+    (u) => `<div class="autocomplete-title">${u.displayName}</div><div class="autocomplete-sub">${u.userPrincipalName || 'Sin email'}</div>`,
+    (u, input, hidden) => { input.value = u.displayName; hidden.value = u.id; }
+  );
+  
   loadMembers(teamId);
 }
 

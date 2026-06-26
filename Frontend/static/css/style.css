@@ -1286,3 +1286,31 @@ select.ss-cell { cursor: pointer; }
   0%, 100% { scale: 1; }
   50%       { scale: 1.04; }
 }
+
+/* ── 44. Autocomplete ── */
+.autocomplete-container { position: relative; }
+.autocomplete-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 1050; max-height: 250px; overflow-y: auto; display: none;
+}
+.autocomplete-dropdown.show { display: block; animation: fadeDown 0.15s ease-out; }
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.autocomplete-item {
+  padding: 8px 12px; cursor: pointer; color: var(--text-primary);
+  border-bottom: 1px solid var(--card-border);
+  transition: background 0.1s;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover, .autocomplete-item.active { background: var(--table-hover-bg); }
+.autocomplete-title { font-size: 0.85rem; font-weight: 600; }
+.autocomplete-sub { font-size: 0.72rem; color: var(--text-muted); }
+.autocomplete-loading { padding: 8px 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center; }

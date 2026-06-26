@@ -1100,3 +1100,61 @@ document.getElementById('cmdPaletteInput')?.addEventListener('input', function(e
     }
   }, 400);
 });
+
+// Generic Autocomplete Setup
+function setupAutocomplete(inputId, hiddenId, resultsId, searchUrl, itemFormatter, onSelect) {
+  const input = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
+  const results = document.getElementById(resultsId);
+  if(!input || !hidden || !results) return;
+  
+  let timeout = null;
+
+  input.addEventListener('input', () => {
+    clearTimeout(timeout);
+    hidden.value = ''; // Reset ID on change
+    const query = input.value.trim();
+    if (query.length < 3) {
+      results.classList.remove('show');
+      return;
+    }
+    
+    results.innerHTML = '<div class="autocomplete-loading"><i class="bi bi-hourglass-split"></i> Buscando...</div>';
+    results.classList.add('show');
+    
+    timeout = setTimeout(async () => {
+      try {
+        const paramName = searchUrl.includes('/teams/users') ? 'search' : 'search_term';
+        const url = `${searchUrl}?${paramName}=${encodeURIComponent(query)}&top=15&per_page=15`;
+        const res = await api.get(url);
+        let items = Array.isArray(res) ? res : (res.value || res.items || []);
+        
+        if (items.length === 0) {
+          results.innerHTML = '<div class="autocomplete-loading">No se encontraron resultados</div>';
+          return;
+        }
+        
+        results.innerHTML = '';
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = itemFormatter(item);
+          div.addEventListener('click', () => {
+            onSelect(item, input, hidden);
+            results.classList.remove('show');
+          });
+          results.appendChild(div);
+        });
+      } catch (err) {
+        results.innerHTML = '<div class="autocomplete-loading text-danger">Error al buscar</div>';
+      }
+    }, 450); // Debounce de 450ms
+  });
+
+  // Hide on blur
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !results.contains(e.target)) {
+      results.classList.remove('show');
+    }
+  });
+}

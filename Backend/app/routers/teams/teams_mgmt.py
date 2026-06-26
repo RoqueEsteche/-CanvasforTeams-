@@ -30,12 +30,22 @@ _TEMPLATES = {
 
 @router.get("", summary="Listar todos los Teams del tenant")
 async def list_teams(
+    search_term: Annotated[str | None, Query(description="Buscar por displayName")] = None,
     top: Annotated[int, Query(ge=1, le=999)] = 50,
 ):
+    # Base filter for Teams
+    filter_query = "resourceProvisioningOptions/Any(x:x eq 'Team')"
+    
+    if search_term:
+        # Avoid injection by removing quotes
+        clean_term = search_term.replace("'", "")
+        # Note: startswith is supported by Microsoft Graph for displayName
+        filter_query = f"{filter_query} and startswith(displayName, '{clean_term}')"
+
     params = {
         "$top": top,
         "$select": "id,displayName,description,visibility,createdDateTime",
-        "$filter": "resourceProvisioningOptions/Any(x:x eq 'Team')",
+        "$filter": filter_query,
     }
     return await graph.paginate("/groups", params)
 
