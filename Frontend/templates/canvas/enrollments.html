@@ -230,9 +230,10 @@ function openEnrollOne() {
         </div>
         <div class="col-md-6">
           <label class="form-label">Estado</label>
-          <select class="form-select" name="enrollment_state">
-            <option value="active">Activo</option>
-            <option value="invited">Invitado</option>
+          <select name="enrollment_state" class="form-select form-select-sm" id="enrollState">
+            <option value="active">Activo (Directo)</option>
+            <option value="invited" selected>Invitado (Requiere aceptar)</option>
+            <option value="inactive">Inactivo</option>
           </select>
         </div>
         <div class="col-12">
