@@ -814,6 +814,9 @@ class DiplomadosUrlRequest(BaseModel):
     url: str
     sheet_name: str
 
+
+class UrlOnlyRequest(BaseModel):
+    url: str
 class PreviewResponse(BaseModel):
     sheet_name: str
     students_to_process: int
@@ -826,6 +829,34 @@ def _encode_share_url(url: str) -> str:
     b64 = b64.replace("/", "_").replace("+", "-").rstrip("=")
     return f"u!{b64}"
 
+
+@router.post("/excel/diplomados/sheets", response_model=list[str])
+async def get_diplomados_sheets(req: UrlOnlyRequest) -> list[str]:
+    if not req.url or "http" not in req.url:
+        raise HTTPException(status_code=400, detail="URL invalida.")
+    
+    encoded_url = _encode_share_url(req.url)
+    try:
+        sheets_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudieron cargar las pestanas. {e}")
+
+    values = sheets_data.get("value", [])
+    return [s.get("name") for s in values if s.get("name")]
+
+@router.post("/excel/egreso/sheets", response_model=list[str])
+async def get_egreso_sheets(req: UrlOnlyRequest) -> list[str]:
+    if not req.url or "http" not in req.url:
+        raise HTTPException(status_code=400, detail="URL invalida.")
+    
+    encoded_url = _encode_share_url(req.url)
+    try:
+        sheets_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets")
+    exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudieron cargar las pestanas. {e}")
+
+    values = sheets_data.get("value", [])
+    return [s.get("name") for s in values if s.get("name")]
 @router.post("/excel/diplomados/preview", response_model=PreviewResponse)
 async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
     if not req.url or "http" not in req.url:

@@ -86,11 +86,17 @@
           <div class="col-md-8">
             <div class="mb-3">
               <label class="form-label fw-bold">Enlace del Excel en OneDrive</label>
-              <input type="url" class="form-control border-danger" id="urlEgresoOneDrive" placeholder="https://usilparaguay-my.sharepoint.com/:x:/g/personal/...">
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                <input type="url" class="form-control border-danger" id="urlEgresoOneDrive" placeholder="https://usilparaguay-my.sharepoint.com/:x:/g/personal/...">
+                <button class="btn btn-danger" type="button" id="btnLoadSheetsEgreso" onclick="fetchSheetsEgreso()">Cargar Pestañas</button>
+              </div>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-bold">Nombre de la Pestaña</label>
-              <input type="text" class="form-control" id="sheetEgresoOneDrive" placeholder="Ej: Bajas Mayo">
+              <label class="form-label fw-bold">Nombre de la Pestaña (Requerido)</label>
+              <select class="form-select" id="sheetEgresoOneDrive">
+                <option value="">Primero carga las pestañas...</option>
+              </select>
             </div>
           </div>
           <div class="col-md-4 d-flex align-items-end mb-3">
