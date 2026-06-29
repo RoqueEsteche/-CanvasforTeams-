@@ -137,7 +137,7 @@ _client_instance: httpx.AsyncClient | None = None
 def _client(timeout: httpx.Timeout | None = None) -> httpx.AsyncClient:
     global _client_instance
     if _client_instance is None or _client_instance.is_closed:
-        _client_instance = httpx.AsyncClient(timeout=_TIMEOUT)
+        _client_instance = httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True)
     if timeout is not None:
         _client_instance.timeout = timeout
     else:

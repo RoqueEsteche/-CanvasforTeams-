@@ -941,6 +941,7 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                     if "already exists" not in str(e).lower() and "Request_BadRequest" not in str(e):
                         error = str(e)
             
+            email_sent = False
             if not error and correo and correo != "None":
                 try:
                     await send_welcome_email(
@@ -955,17 +956,25 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                         extra_cc=None,
                         attachments=get_program_attachments("diplomado")
                     )
+                    email_sent = True
                 except Exception as e:
-                    pass
+                    error = f"Creado OK, pero falló el correo: {e}"
+            elif not error and (not correo or correo == "None"):
+                error = "Creado OK, pero no hay correo asignado"
             
-            if not error:
+            if not error or "Creado OK" in str(error):
                 ws.cell(row=r_idx, column=col_usuario, value=login_id)
                 ws.cell(row=r_idx, column=col_contra, value=pwd)
-                ws.cell(row=r_idx, column=col_enviado, value="✅")
-                ws.cell(row=r_idx, column=col_enviado).font = Font(color="00B050", bold=True)
                 result.succeeded.append({"cedula": cedula, "nombre": creds["full_name"]})
+                
+                if email_sent:
+                    ws.cell(row=r_idx, column=col_enviado, value="✅")
+                    ws.cell(row=r_idx, column=col_enviado).font = Font(color="00B050", bold=True)
+                else:
+                    ws.cell(row=r_idx, column=col_enviado, value=f"⚠️ {error}")
+                    ws.cell(row=r_idx, column=col_enviado).font = Font(color="D97706", bold=True)
             else:
-                ws.cell(row=r_idx, column=col_enviado, value=f"❌ Error")
+                ws.cell(row=r_idx, column=col_enviado, value=f"❌ Error: {error}")
                 ws.cell(row=r_idx, column=col_enviado).font = Font(color="FF0000")
                 result.failed.append({"input": {"cedula": cedula}, "error": error})
 
