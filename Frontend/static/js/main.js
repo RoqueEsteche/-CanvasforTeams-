@@ -1204,19 +1204,22 @@ function openExcelDiplomados() {
   document.getElementById('globalModalTitle').innerHTML = '<i class="bi bi-cloud-arrow-up me-2"></i>Sincronización Directa de Diplomados';
   document.getElementById('globalModalBody').innerHTML = `
     <div class="alert alert-info">
-      Pega el <b>enlace compartido de OneDrive</b> de la planilla de Diplomados. El sistema se conectará a la nube, procesará las cuentas y <b>escribirá las contraseñas directamente en tu archivo original</b>.
+      Pega el <b>enlace compartido de OneDrive</b> de la planilla de Diplomados. Haz clic en "Cargar Pestañas" para ver las hojas disponibles.
     </div>
     <div class="row">
-      <div class="col-md-8 offset-md-2">
+      <div class="col-md-10 offset-md-1">
         <label class="form-label fw-bold">URL Compartida de OneDrive / SharePoint</label>
         <div class="input-group mb-3">
           <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-          <input type="url" class="form-control" id="diplomadoUrl" placeholder="https://instituto-my.sharepoint.com/..." required>
+          <input type="url" class="form-control" id="diplomadoUrl" value="https://usilparaguay-my.sharepoint.com/:x:/g/personal/resteche_usil_edu_py/IQBjeh0nYFG7QbZx21y-3U-8AfhP2B9akxz7fo_LK_sKyGo?e=y8pJYX" required>
+          <button class="btn btn-primary" type="button" id="btnLoadSheets" onclick="fetchSheets()">Cargar Pestañas</button>
         </div>
         <label class="form-label fw-bold">Nombre de la Pestaña (Requerido)</label>
         <div class="input-group mb-3">
           <span class="input-group-text"><i class="bi bi-file-spreadsheet"></i></span>
-          <input type="text" class="form-control" id="diplomadoSheet" placeholder="Ej: Diplomado de Prueba" required>
+          <select class="form-select" id="diplomadoSheet" required>
+              <option value="">Primero haz clic en Cargar Pestañas...</option>
+          </select>
         </div>
       </div>
     </div>
@@ -1228,6 +1231,44 @@ function openExcelDiplomados() {
   
   new bootstrap.Modal(document.getElementById('globalModal')).show();
 }
+
+async function fetchSheets() {
+    const urlInput = document.getElementById('diplomadoUrl').value.trim();
+    if (!urlInput) {
+        toast('Por favor, ingresa la URL primero.', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('btnLoadSheets');
+    const select = document.getElementById('diplomadoSheet');
+    const oldText = btn.innerHTML;
+    
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cargando...';
+    btn.disabled = true;
+    select.innerHTML = '<option value="">Cargando pestañas...</option>';
+    
+    try {
+        const sheets = await api.post('/excel/diplomados/sheets', { url: urlInput });
+        if (sheets && sheets.length > 0) {
+            select.innerHTML = '<option value="">Selecciona una pestaña...</option>';
+            sheets.forEach(sheet => {
+                const option = document.createElement('option');
+                option.value = sheet;
+                option.textContent = sheet;
+                select.appendChild(option);
+            });
+            toast('Pestañas cargadas correctamente.', 'success');
+        } else {
+            select.innerHTML = '<option value="">No se encontraron pestañas.</option>';
+        }
+    } catch (e) {
+        toast('Error al cargar pestañas: ' + (e.detail || e.message || e), 'danger');
+        select.innerHTML = '<option value="">Error al cargar.</option>';
+    } finally {
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+    }
+  }
 
 async function doUploadDiplomados() {
   const urlInput = document.getElementById('diplomadoUrl').value.trim();

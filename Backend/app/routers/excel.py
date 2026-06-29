@@ -814,6 +814,9 @@ class DiplomadosUrlRequest(BaseModel):
     url: str
     sheet_name: str
 
+class SheetsUrlRequest(BaseModel):
+    url: str
+
 class PreviewResponse(BaseModel):
     sheet_name: str
     students_to_process: int
@@ -827,6 +830,25 @@ def _encode_share_url(url: str) -> str:
     encoded = base64.b64encode(url.encode('utf-8')).decode('utf-8')
     encoded = encoded.replace('+', '-').replace('/', '_').rstrip('=')
     return 'u!' + encoded
+
+@router.post("/excel/diplomados/sheets", summary="Obtener nombres de pestañas de un Excel en OneDrive")
+async def get_excel_sheets(req: SheetsUrlRequest) -> list[str]:
+    if not req.url or "http" not in req.url:
+        raise HTTPException(status_code=400, detail="URL inválida.")
+    
+    encoded_url = _encode_share_url(req.url)
+    try:
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True)
+        sheets = wb.sheetnames
+        wb.close()
+        return sheets
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
 
 @router.post("/excel/diplomados/preview", summary="Pre-visualizar planilla de Diplomados")
 async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
