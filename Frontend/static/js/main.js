@@ -1166,7 +1166,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const collapseParent = activeLink.closest(".collapse");
     if (collapseParent) {
       collapseParent.classList.add("show");
-      const trigger = document.querySelector([href="#$((collapseParent.id))"]);
+      const trigger = document.querySelector(`[href="#${collapseParent.id}"]`);
       if (trigger) trigger.setAttribute("aria-expanded", "true");
     }
   }
