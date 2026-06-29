@@ -1035,7 +1035,7 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
             
             if not nombre or not cedula or cedula == "None":
                 return
-            if "Ô£à" in enviado or enviado.lower() in ["si", "yes", "true", "enviado"]:
+            if "✅" in enviado or enviado.lower() in ["si", "yes", "true", "enviado"]:
                 return
 
             creds = generate_credentials(nombre, cedula, settings.institutional_domain)
@@ -1094,13 +1094,13 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                 result.succeeded.append({"cedula": cedula, "nombre": creds["full_name"]})
                 
                 if email_sent:
-                    ws.cell(row=r_idx, column=col_enviado, value="Ô£à")
+                    ws.cell(row=r_idx, column=col_enviado, value="✅")
                     ws.cell(row=r_idx, column=col_enviado).font = Font(color="00B050", bold=True)
                 else:
-                    ws.cell(row=r_idx, column=col_enviado, value=f"ÔÜá´©Å {error}")
+                    ws.cell(row=r_idx, column=col_enviado, value=f"⚠️ {error}")
                     ws.cell(row=r_idx, column=col_enviado).font = Font(color="D97706", bold=True)
             else:
-                ws.cell(row=r_idx, column=col_enviado, value=f"ÔØî Error: {error}")
+                ws.cell(row=r_idx, column=col_enviado, value=f"❌ Error: {error}")
                 ws.cell(row=r_idx, column=col_enviado).font = Font(color="FF0000")
                 result.failed.append({"input": {"cedula": cedula}, "error": error})
 
