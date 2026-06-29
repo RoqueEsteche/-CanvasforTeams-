@@ -871,38 +871,39 @@ async def get_egreso_sheets(req: UrlOnlyRequest) -> list[str]:
         return sheets
     except Exception as e:
         raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
-@router.post("/excel/diplomados/preview", response_model=PreviewResponse)
+@router.post("/excel/diplomados/preview", summary="Pre-visualizar planilla de Diplomados")
 async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
     if not req.url or "http" not in req.url:
-        raise HTTPException(status_code=400, detail="URL inválida.")
+        raise HTTPException(status_code=400, detail="URL inv├ílida.")
     
     encoded_url = _encode_share_url(req.url)
     try:
-        range_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/usedRange")
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
     except Exception as e:
-        if "ItemNotFound" in str(e):
-            raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe o el archivo no es un Excel válido.")
-        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de Excel. {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
 
-    values = range_data.get("values", [])
-    if not values:
-        raise HTTPException(status_code=400, detail="El archivo está vacío.")
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel v├ílido.")
 
-    header_r_idx = None
-    headers = {}
+    if req.sheet_name not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail=f"La pesta├▒a '{req.sheet_name}' no existe. Disponibles: {', '.join(wb.sheetnames)}")
+
+    ws = wb[req.sheet_name]
     
-    # We only look at the first 6 rows to find the headers
-    for r_idx, row in enumerate(values[:6]):
-        row_vals = [str(v or "").strip().lower() for v in row]
-        if any("nombre" in v for v in row_vals) and any("cedula" in v or "cédula" in v or "ci" in v for v in row_vals):
-            header_r_idx = r_idx
-            for c_idx, val in enumerate(row_vals):
-                if val:
-                    headers[_norm(val)] = c_idx
+    header_row_idx = None
+    headers = {}
+    for row_idx in range(1, min(6, ws.max_row + 1)):
+        row_vals = [str(ws.cell(row=row_idx, column=c).value or "").strip().lower() for c in range(1, ws.max_column + 1)]
+        if any("nombre" in v for v in row_vals) and any("cedula" in v or "c├®dula" in v for v in row_vals):
+            header_row_idx = row_idx
+            for col_idx, val in enumerate(row_vals, 1):
+                headers[_norm(val)] = col_idx
             break
             
-    if header_r_idx is None:
-        raise HTTPException(status_code=400, detail="No se encontraron las columnas 'Nombre' y 'Cédula'.")
+    if not header_row_idx:
+        raise HTTPException(status_code=400, detail="No se encontraron las columnas 'Nombre' y 'C├®dula'.")
 
     def get_col_idx(*keys):
         for k in keys:
@@ -912,10 +913,10 @@ async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewRespo
         return None
 
     col_nombre = get_col_idx("nombre")
-    col_cedula = get_col_idx("cedula", "cédula", "ci")
+    col_cedula = get_col_idx("cedula", "c├®dula", "ci")
     col_enviado = get_col_idx("enviado", "estado")
-
-    if col_nombre is None or col_cedula is None:
+    
+    if not col_nombre or not col_cedula:
         raise HTTPException(status_code=400, detail="Columnas requeridas no encontradas.")
 
     to_process = 0
@@ -923,17 +924,9 @@ async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewRespo
     details = []
     
     empty_count = 0
-    for r_idx in range(header_r_idx + 1, len(values)):
-        row = values[r_idx]
-        
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        nombre_val = get_val(col_nombre)
-        cedula_val = get_val(col_cedula)
-        enviado_val = get_val(col_enviado)
+    for r_idx in range(header_row_idx + 1, ws.max_row + 1):
+        nombre_val = str(ws.cell(row=r_idx, column=col_nombre).value or "").strip()
+        cedula_val = str(ws.cell(row=r_idx, column=col_cedula).value or "").strip()
         
         if not nombre_val and not cedula_val:
             empty_count += 1
@@ -942,277 +935,263 @@ async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewRespo
             continue
             
         empty_count = 0
-        if "✅" in enviado_val or "si" in enviado_val.lower() or "enviado" in enviado_val.lower():
+        enviado = ""
+        if col_enviado:
+            enviado = str(ws.cell(row=r_idx, column=col_enviado).value or "").strip()
+            
+        if "Ô£à" in enviado or enviado.lower() in ["si", "yes", "true", "enviado"]:
             already_processed += 1
         else:
             to_process += 1
-            if len(details) < 50:
-                details.append({"nombre": nombre_val, "cedula": cedula_val})
-
+            details.append({"nombre": nombre_val, "cedula": cedula_val})
+            
+    wb.close()
     return PreviewResponse(
         sheet_name=req.sheet_name,
         students_to_process=to_process,
         students_already_processed=already_processed,
+        total_rows=to_process + already_processed,
         student_details=details
     )
 
-@router.post("/excel/diplomados", response_model=BulkResult)
+
+@router.post("/excel/diplomados", summary="Procesar planilla de Diplomados directo en OneDrive")
 async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
     if not req.url or "http" not in req.url:
-        raise HTTPException(status_code=400, detail="URL inválida.")
+        raise HTTPException(status_code=400, detail="URL inv├ílida.")
     
     encoded_url = _encode_share_url(req.url)
+    
     try:
-        range_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/usedRange")
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
     except Exception as e:
-        if "ItemNotFound" in str(e):
-            raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe o el archivo no es un Excel válido.")
-        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de Excel. {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo de OneDrive. Verifica la URL y los permisos. Detalle: {e}")
 
-    values = range_data.get("values", [])
-    if not values:
-        raise HTTPException(status_code=400, detail="El archivo está vacío.")
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo descargado no es un Excel v├ílido.")
 
-    # The starting row/col index of this used range relative to the worksheet (0-based)
-    start_row = range_data.get("rowIndex", 0)
-    start_col = range_data.get("columnIndex", 0)
+    _ACCOUNT_LOCAL = settings.canvas_account_id
+    result = BulkResult()
 
-    header_r_idx = None
-    headers = {}
-    
-    for r_idx, row in enumerate(values[:6]):
-        row_vals = [str(v or "").strip().lower() for v in row]
-        if any("nombre" in v for v in row_vals) and any("cedula" in v or "cédula" in v or "ci" in v for v in row_vals):
-            header_r_idx = r_idx
-            for c_idx, val in enumerate(row_vals):
-                if val:
-                    headers[_norm(val)] = c_idx
-            break
+    if req.sheet_name not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail=f"La pesta├▒a '{req.sheet_name}' no existe en el archivo. Las disponibles son: {', '.join(wb.sheetnames)}")
+
+    # Buscar en la hoja especificada
+    for sheet_name in [req.sheet_name]:
+        ws = wb[sheet_name]
+        
+        header_row_idx = None
+        headers = {}
+        for row_idx in range(1, min(6, ws.max_row + 1)):
+            row_vals = [str(ws.cell(row=row_idx, column=c).value or "").strip().lower() for c in range(1, ws.max_column + 1)]
+            if any("nombre" in v for v in row_vals) and any("cedula" in v or "c├®dula" in v for v in row_vals):
+                header_row_idx = row_idx
+                for col_idx, val in enumerate(row_vals, 1):
+                    headers[_norm(val)] = col_idx
+                break
+        
+        if not header_row_idx:
+            continue
+
+        def get_col_idx(*keys):
+            for k in keys:
+                for h, idx in headers.items():
+                    if _norm(k) in h:
+                        return idx
+            return None
+
+        col_nombre = get_col_idx("nombre")
+        col_cedula = get_col_idx("cedula", "c├®dula", "ci")
+        col_correo = get_col_idx("correo")
+        
+        col_usuario = get_col_idx("usuario")
+        col_contra = get_col_idx("contrasena", "contrase├▒a", "clave")
+        col_enviado = get_col_idx("enviado", "estado")
+
+        if not col_nombre or not col_cedula:
+            continue
+
+        next_col = ws.max_column + 1
+        if not col_usuario:
+            col_usuario = next_col
+            ws.cell(row=header_row_idx, column=col_usuario, value="Usuario").font = Font(bold=True)
+            next_col += 1
+        if not col_contra:
+            col_contra = next_col
+            ws.cell(row=header_row_idx, column=col_contra, value="Contrase├▒a").font = Font(bold=True)
+            next_col += 1
+        if not col_enviado:
+            col_enviado = next_col
+            ws.cell(row=header_row_idx, column=col_enviado, value="Enviado").font = Font(bold=True)
+        
+        async def process_row(r_idx):
+            nombre = str(ws.cell(row=r_idx, column=col_nombre).value or "").strip()
+            cedula = str(ws.cell(row=r_idx, column=col_cedula).value or "").strip()
+            correo = str(ws.cell(row=r_idx, column=col_correo).value or "").strip() if col_correo else ""
             
-    if header_r_idx is None:
-        raise HTTPException(status_code=400, detail="No se encontraron las columnas 'Nombre' y 'Cédula'.")
+            enviado = str(ws.cell(row=r_idx, column=col_enviado).value or "").strip()
+            
+            if not nombre or not cedula or cedula == "None":
+                return
+            if "Ô£à" in enviado or enviado.lower() in ["si", "yes", "true", "enviado"]:
+                return
 
-    def get_col_idx(*keys):
-        for k in keys:
-            for h, idx in headers.items():
-                if _norm(k) in h:
-                    return idx
-        return None
-
-    col_nombre = get_col_idx("nombre")
-    col_cedula = get_col_idx("cedula", "cédula", "ci")
-    col_correo = get_col_idx("correo", "email")
-    
-    col_usuario = get_col_idx("usuario", "user")
-    col_contra = get_col_idx("contrasena", "contraseña", "clave", "pass")
-    col_enviado = get_col_idx("enviado", "estado")
-
-    if col_nombre is None or col_cedula is None:
-        raise HTTPException(status_code=400, detail="Columnas requeridas no encontradas.")
-
-    max_col = len(values[header_r_idx])
-    
-    # We patch missing headers if necessary
-    async def patch_header(c_idx, val):
-        abs_r = start_row + header_r_idx
-        abs_c = start_col + c_idx
-        try:
-            await graph.patch(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/cell(row={abs_r},column={abs_c})", {"values": [[val]]})
-        except:
-            pass
-
-    if col_usuario is None:
-        col_usuario = max_col
-        max_col += 1
-        await patch_header(col_usuario, "Usuario")
-    if col_contra is None:
-        col_contra = max_col
-        max_col += 1
-        await patch_header(col_contra, "Contraseña")
-    if col_enviado is None:
-        col_enviado = max_col
-        max_col += 1
-        await patch_header(col_enviado, "Enviado")
-
-    result = BulkResult(succeeded=[], failed=[])
-    
-    async def process_row(r_idx, row):
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        nombre = get_val(col_nombre)
-        cedula = get_val(col_cedula)
-        correo = get_val(col_correo) if col_correo is not None else ""
-        enviado = get_val(col_enviado)
-        
-        if not nombre or not cedula or cedula == "None":
-            return
-        if "✅" in enviado or enviado.lower() in ["si", "yes", "true", "enviado"]:
-            return
-
-        creds = generate_credentials(nombre, cedula, settings.institutional_domain)
-        login_id = creds["email"]
-        pwd = creds["password"]
-        error = None
-        
-        try:
-            await canvas.post(f"/accounts/{_ACCOUNT}/users", {
-                "user": {"name": creds["full_name"]},
-                "pseudonym": {
-                    "unique_id": login_id, "sis_user_id": cedula,
-                    "password": pwd, "send_confirmation": False,
-                },
-                "communication_channel": {
-                    "type": "email", "address": login_id,
-                    "skip_confirmation": True,
-                },
-            })
-        except Exception as e:
-            error = str(e)
-        
-        if not error:
-            parts = creds["full_name"].strip().split()
+            creds = generate_credentials(nombre, cedula, settings.institutional_domain)
+            login_id = creds["email"]
+            pwd = creds["password"]
+            error = None
+            
             try:
-                au = await graph.post("/users", {
-                    "displayName": creds["full_name"],
-                    "givenName": parts[0],
-                    "surname": " ".join(parts[1:]) if len(parts) > 1 else "",
-                    "userPrincipalName": login_id,
-                    "mailNickname": login_id.replace(".", "_").replace("@", "_"),
-                    "usageLocation": settings.usage_location,
-                    "accountEnabled": True,
-                    "passwordProfile": {
-                        "forceChangePasswordNextSignIn": True,
-                        "password": pwd,
+                await canvas.post(f"/accounts/{_ACCOUNT_LOCAL}/users", {
+                    "user": {"name": creds["full_name"]},
+                    "pseudonym": {
+                        "unique_id": login_id, "sis_user_id": cedula,
+                        "password": pwd, "send_confirmation": False,
+                    },
+                    "communication_channel": {
+                        "type": "email", "address": login_id,
+                        "skip_confirmation": True,
                     },
                 })
-                await graph.assign_license(au["id"], settings.azure_sku_students)
             except Exception as e:
-                if "already exists" not in str(e).lower() and "Request_BadRequest" not in str(e):
-                    error = str(e)
-        
-        email_sent = False
-        if not error and correo and correo != "None":
-            try:
-                await send_welcome_email(
-                    to_email=correo, 
-                    full_name=creds["full_name"], 
-                    institutional_email=login_id,
-                    login_id=login_id, 
-                    password=pwd, 
-                    platform="both",
-                    program_type="diplomado", 
-                    program_name=req.sheet_name,
-                    extra_cc=None,
-                    attachments=get_program_attachments("diplomado")
-                )
-                email_sent = True
-            except Exception as e:
-                error = f"Creado OK, pero falló el correo: {e}"
-        elif not error and (not correo or correo == "None"):
-            error = "Creado OK, pero no hay correo asignado"
-        
-        # calculate absolute row and column addresses
-        abs_r = start_row + r_idx
-        abs_col_enviado = start_col + col_enviado
-        abs_col_user = start_col + col_usuario
-        abs_col_pwd = start_col + col_contra
-
-        async def patch_cell(c, val):
-            try:
-                await graph.patch(
-                    f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/cell(row={abs_r},column={c})",
-                    {"values": [[val]]}
-                )
-            except Exception as e:
-                pass # ignore cell update errors if any (or log them)
-
-        if not error or "Creado OK" in str(error):
-            result.succeeded.append({"cedula": cedula, "nombre": creds["full_name"]})
+                error = str(e)
             
-            if email_sent:
-                # Patch cells individually
-                await patch_cell(abs_col_user, login_id)
-                await patch_cell(abs_col_pwd, pwd)
-                await patch_cell(abs_col_enviado, "✅")
+            if not error:
+                parts = creds["full_name"].strip().split()
+                try:
+                    au = await graph.post("/users", {
+                        "displayName": creds["full_name"],
+                        "givenName": parts[0],
+                        "surname": " ".join(parts[1:]) if len(parts) > 1 else "",
+                        "userPrincipalName": login_id,
+                        "mailNickname": login_id.replace(".", "_").replace("@", "_"),
+                        "usageLocation": settings.usage_location,
+                        "accountEnabled": True,
+                        "passwordProfile": {
+                            "forceChangePasswordNextSignIn": True,
+                            "password": pwd,
+                        },
+                    })
+                    await graph.assign_license(au["id"], settings.azure_sku_students)
+                except Exception as e:
+                    if "already exists" not in str(e).lower() and "Request_BadRequest" not in str(e):
+                        error = str(e)
+            
+            email_sent = False
+            if not error and correo and correo != "None":
+                try:
+                    await send_welcome_email(
+                        to_email=correo, 
+                        full_name=creds["full_name"], 
+                        institutional_email=login_id,
+                        login_id=login_id, 
+                        password=pwd, 
+                        platform="both",
+                        program_type="diplomado", 
+                        program_name=sheet_name,
+                        extra_cc=None,
+                        attachments=get_program_attachments("diplomado")
+                    )
+                    email_sent = True
+                except Exception as e:
+                    error = f"Creado OK, pero fall├│ el correo: {e}"
+            elif not error and (not correo or correo == "None"):
+                error = "Creado OK, pero no hay correo asignado"
+            
+            if not error or "Creado OK" in str(error):
+                ws.cell(row=r_idx, column=col_usuario, value=login_id)
+                ws.cell(row=r_idx, column=col_contra, value=pwd)
+                result.succeeded.append({"cedula": cedula, "nombre": creds["full_name"]})
+                
+                if email_sent:
+                    ws.cell(row=r_idx, column=col_enviado, value="Ô£à")
+                    ws.cell(row=r_idx, column=col_enviado).font = Font(color="00B050", bold=True)
+                else:
+                    ws.cell(row=r_idx, column=col_enviado, value=f"ÔÜá´©Å {error}")
+                    ws.cell(row=r_idx, column=col_enviado).font = Font(color="D97706", bold=True)
             else:
-                await patch_cell(abs_col_user, login_id)
-                await patch_cell(abs_col_pwd, pwd)
-                await patch_cell(abs_col_enviado, f"✅? {error}")
-        else:
-            result.failed.append({"input": {"cedula": cedula}, "error": error})
-            await patch_cell(abs_col_enviado, f"❌ Error: {error}")
+                ws.cell(row=r_idx, column=col_enviado, value=f"ÔØî Error: {error}")
+                ws.cell(row=r_idx, column=col_enviado).font = Font(color="FF0000")
+                result.failed.append({"input": {"cedula": cedula}, "error": error})
 
-    tasks = []
-    empty_count = 0
-    for r_idx in range(header_r_idx + 1, len(values)):
-        row = values[r_idx]
-        
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        nombre_val = get_val(col_nombre)
-        cedula_val = get_val(col_cedula)
-        
-        if not nombre_val and not cedula_val:
-            empty_count += 1
-            if empty_count > 10:
-                break
-            continue
-            
+        tasks = []
         empty_count = 0
-        tasks.append(process_row(r_idx, row))
-        
-    if len(tasks) > 50:
-        raise HTTPException(status_code=400, detail=f"Límite de seguridad excedido: Intentas procesar {len(tasks)} alumnos a la vez (Máximo 50 permitidos). Revisa el archivo para evitar accidentes.")
+        for r_idx in range(header_row_idx + 1, ws.max_row + 1):
+            nombre_val = str(ws.cell(row=r_idx, column=col_nombre).value or "").strip()
+            cedula_val = str(ws.cell(row=r_idx, column=col_cedula).value or "").strip()
+            
+            if not nombre_val and not cedula_val:
+                empty_count += 1
+                if empty_count > 10:
+                    break
+                continue
+                
+            empty_count = 0
+            tasks.append(process_row(r_idx))
+            
+        if len(tasks) > 50:
+            raise HTTPException(status_code=400, detail=f"L├¡mite de seguridad excedido: Intentas procesar {len(tasks)} alumnos a la vez (M├íximo 50 permitidos). Revisa el archivo para evitar accidentes.")
+            
+        if len(tasks) > 0:
+            try:
+                # Verificar si el archivo est├í bloqueado antes de empezar a procesar alumnos
+                await graph.put_raw(f"/shares/{encoded_url}/driveItem/content", contents)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail="El archivo Excel est├í abierto. Por favor, ci├®rralo completamente en tu navegador o Excel antes de sincronizar.")
 
-    batch_size = 5
-    for i in range(0, len(tasks), batch_size):
-        await asyncio.gather(*tasks[i:i+batch_size])
+        batch_size = 5
+        for i in range(0, len(tasks), batch_size):
+            await asyncio.gather(*tasks[i:i+batch_size])
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    try:
+        await graph.put_raw(f"/shares/{encoded_url}/driveItem/content", output.getvalue())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el archivo actualizado en OneDrive. {e}")
 
     return result
 
 
-# ------------------------------------------------------------------
-# Egreso Masivo (Offboarding) con OneDrive y Graph API
-# ------------------------------------------------------------------
-
-@router.post("/excel/egreso/preview", response_model=PreviewResponse)
+@router.post("/excel/egreso/preview", summary="Pre-visualizar planilla de Egreso Masivo")
 async def preview_egreso_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
     if not req.url or "http" not in req.url:
         raise HTTPException(status_code=400, detail="URL inválida.")
     
     encoded_url = _encode_share_url(req.url)
     try:
-        range_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/usedRange")
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
     except Exception as e:
-        if "ItemNotFound" in str(e):
-            raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe o el archivo no es un Excel válido.")
-        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de Excel. {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
 
-    values = range_data.get("values", [])
-    if not values:
-        raise HTTPException(status_code=400, detail="El archivo está vacío.")
+    try:
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
 
-    header_r_idx = None
-    headers = {}
+    if req.sheet_name not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe.")
+
+    ws = wb[req.sheet_name]
     
-    # Buscamos en las primeras 6 filas
-    for r_idx, row in enumerate(values[:6]):
-        row_vals = [str(v or "").strip().lower() for v in row]
-        if any("cedula" in v or "cédula" in v or "ci" in v for v in row_vals):
-            header_r_idx = r_idx
-            for c_idx, val in enumerate(row_vals):
-                if val:
-                    headers[_norm(val)] = c_idx
+    header_row_idx = None
+    headers = {}
+    for row_idx in range(1, min(6, ws.max_row + 1)):
+        row_vals = [str(ws.cell(row=row_idx, column=c).value or "").strip().lower() for c in range(1, ws.max_column + 1)]
+        if any("nombre" in v for v in row_vals) and any("correo" in v or "email" in v for v in row_vals):
+            header_row_idx = row_idx
+            for col_idx, val in enumerate(row_vals, 1):
+                headers[_norm(val)] = col_idx
             break
             
-    if header_r_idx is None:
-        raise HTTPException(status_code=400, detail="No se encontró la columna 'Cédula' o equivalente.")
+    if not header_row_idx:
+        raise HTTPException(status_code=400, detail="No se encontraron las columnas 'Nombre' y 'Correo'.")
 
     def get_col_idx(*keys):
         for k in keys:
@@ -1222,84 +1201,82 @@ async def preview_egreso_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
         return None
 
     col_nombre = get_col_idx("nombre")
+    col_correo = get_col_idx("correo", "email")
     col_cedula = get_col_idx("cedula", "cédula", "ci")
-    col_desvinculado = get_col_idx("desvinculado", "estado", "enviado")
-
-    if col_cedula is None:
-        raise HTTPException(status_code=400, detail="Columna Cédula requerida no encontrada.")
+    col_enviado = get_col_idx("enviado", "estado")
+    
+    if not col_nombre or not col_correo:
+        raise HTTPException(status_code=400, detail="Columnas requeridas no encontradas.")
 
     to_process = 0
     already_processed = 0
     details = []
     
-    empty_count = 0
-    for r_idx in range(header_r_idx + 1, len(values)):
-        row = values[r_idx]
+    for row_idx in range(header_row_idx + 1, ws.max_row + 1):
+        nombre = str(ws.cell(row=row_idx, column=col_nombre).value or "").strip()
+        correo = str(ws.cell(row=row_idx, column=col_correo).value or "").strip()
         
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        nombre_val = get_val(col_nombre) if col_nombre is not None else ""
-        cedula_val = get_val(col_cedula)
-        desv_val = get_val(col_desvinculado)
-        
-        if not cedula_val:
-            empty_count += 1
-            if empty_count > 10:
-                break
+        if not nombre or not correo:
             continue
             
-        empty_count = 0
-        if "✅" in desv_val or "si" in desv_val.lower() or "desvinculado" in desv_val.lower():
+        enviado = str(ws.cell(row=row_idx, column=col_enviado).value or "").strip().lower() if col_enviado else ""
+        
+        if "ok" in enviado or "enviado" in enviado or "eliminado" in enviado or "baja" in enviado:
             already_processed += 1
         else:
             to_process += 1
-            if len(details) < 50:
-                details.append({"nombre": nombre_val or "Sin Nombre", "cedula": cedula_val})
+            if len(details) < 5:
+                details.append({
+                    "nombre": nombre,
+                    "correo": correo,
+                    "cedula": str(ws.cell(row=row_idx, column=col_cedula).value or "").strip() if col_cedula else ""
+                })
 
     return PreviewResponse(
-        sheet_name=req.sheet_name,
-        students_to_process=to_process,
-        students_already_processed=already_processed,
-        student_details=details
+        total=to_process + already_processed,
+        to_process=to_process,
+        already_processed=already_processed,
+        sample_data=details
     )
 
-@router.post("/excel/egreso", response_model=BulkResult)
+@router.post("/excel/egreso", summary="Procesar Egreso Masivo desde OneDrive")
 async def import_egreso_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
     if not req.url or "http" not in req.url:
         raise HTTPException(status_code=400, detail="URL inválida.")
     
     encoded_url = _encode_share_url(req.url)
-    try:
-        range_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/usedRange")
-    except Exception as e:
-        if "ItemNotFound" in str(e):
-            raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe o el archivo no es un Excel válido.")
-        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de Excel. {e}")
-
-    values = range_data.get("values", [])
-    if not values:
-        raise HTTPException(status_code=400, detail="El archivo está vacío.")
-
-    start_row = range_data.get("rowIndex", 0)
-    start_col = range_data.get("columnIndex", 0)
-
-    header_r_idx = None
-    headers = {}
     
-    for r_idx, row in enumerate(values[:6]):
-        row_vals = [str(v or "").strip().lower() for v in row]
-        if any("cedula" in v or "cédula" in v or "ci" in v for v in row_vals):
-            header_r_idx = r_idx
-            for c_idx, val in enumerate(row_vals):
-                if val:
-                    headers[_norm(val)] = c_idx
+    try:
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
+
+    try:
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
+
+    result = BulkResult()
+
+    if req.sheet_name not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe.")
+
+    ws = wb[req.sheet_name]
+    
+    header_row_idx = None
+    headers = {}
+    for row_idx in range(1, min(6, ws.max_row + 1)):
+        row_vals = [str(ws.cell(row=row_idx, column=c).value or "").strip().lower() for c in range(1, ws.max_column + 1)]
+        if any("nombre" in v for v in row_vals) and any("correo" in v or "email" in v for v in row_vals):
+            header_row_idx = row_idx
+            for col_idx, val in enumerate(row_vals, 1):
+                headers[_norm(val)] = col_idx
             break
-            
-    if header_r_idx is None:
-        raise HTTPException(status_code=400, detail="No se encontró la columna 'Cédula'.")
+    
+    if not header_row_idx:
+        raise HTTPException(status_code=400, detail="No se encontraron cabeceras.")
 
     def get_col_idx(*keys):
         for k in keys:
@@ -1308,121 +1285,88 @@ async def import_egreso_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                     return idx
         return None
 
+    col_nombre = get_col_idx("nombre")
+    col_correo = get_col_idx("correo", "email")
     col_cedula = get_col_idx("cedula", "cédula", "ci")
-    col_desvinculado = get_col_idx("desvinculado", "estado", "enviado")
+    col_enviado = get_col_idx("enviado", "estado")
 
-    if col_cedula is None:
-        raise HTTPException(status_code=400, detail="Columna Cédula requerida no encontrada.")
+    if not col_nombre or not col_correo:
+        raise HTTPException(status_code=400, detail="Falta columna de correo o nombre.")
 
-    max_col = len(values[header_r_idx])
-    
-    async def patch_header(c_idx, val):
-        abs_r = start_row + header_r_idx
-        abs_c = start_col + c_idx
-        try:
-            await graph.patch(f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/cell(row={abs_r},column={abs_c})", {"values": [[val]]})
-        except:
-            pass
+    if not col_enviado:
+        from openpyxl.styles import Font
+        col_enviado = ws.max_column + 1
+        ws.cell(row=header_row_idx, column=col_enviado, value="Enviado/Estado").font = Font(bold=True)
 
-    if col_desvinculado is None:
-        col_desvinculado = max_col
-        max_col += 1
-        await patch_header(col_desvinculado, "Desvinculado")
-
-    result = BulkResult(succeeded=[], failed=[])
-    
-    async def process_row(r_idx, row):
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        cedula = get_val(col_cedula)
-        desvinculado = get_val(col_desvinculado)
+    users_to_process = []
+    for row_idx in range(header_row_idx + 1, ws.max_row + 1):
+        nombre = str(ws.cell(row=row_idx, column=col_nombre).value or "").strip()
+        correo = str(ws.cell(row=row_idx, column=col_correo).value or "").strip()
+        enviado = str(ws.cell(row=row_idx, column=col_enviado).value or "").strip().lower()
         
-        if not cedula or cedula == "None":
-            return
-        if "✅" in desvinculado or "si" in desvinculado.lower() or "desvinculado" in desvinculado.lower():
-            return
+        if not nombre or not correo:
+            continue
+            
+        if "ok" in enviado or "eliminado" in enviado or "baja" in enviado or "enviado" in enviado:
+            continue
 
-        error = None
+        users_to_process.append({
+            "r_idx": row_idx,
+            "correo": correo,
+            "nombre": nombre,
+            "cedula": str(ws.cell(row=row_idx, column=col_cedula).value or "").strip() if col_cedula else ""
+        })
+
+    if len(users_to_process) > settings.max_batch_size:
+        raise HTTPException(status_code=400, detail=f"Demasiados registros nuevos pendientes ({len(users_to_process)}). Máximo {settings.max_batch_size} por ejecución.")
+
+    for user_data in users_to_process:
+        correo = user_data["correo"]
+        r_idx = user_data["r_idx"]
         
-        # 1. Canvas suspend
-        canvas_email = None
+        error = ""
+        # 1. Canvas Delete
         try:
-            c_user = await canvas.get(f"/accounts/{_ACCOUNT}/users/sis_user_id:{cedula}")
-            user_id = c_user.get("id")
-            if user_id:
-                await canvas.delete(f"/accounts/{_ACCOUNT}/users/{user_id}")
-                canvas_email = c_user.get("email")
+            users_canvas = await canvas.get(f"/accounts/{settings.canvas_account_id}/users", params={"search_term": correo})
+            if users_canvas:
+                await canvas.delete(f"/accounts/{settings.canvas_account_id}/users/{users_canvas[0]['id']}")
             else:
                 error = "Usuario no encontrado en Canvas"
         except Exception as e:
             if "404" in str(e):
                 error = "Usuario no encontrado en Canvas"
             else:
-                error = f"Error Canvas: {e}"
+                error = f"Error Canvas: {str(e)}"
         
-        # 2. Teams disable
-        teams_suspended = False
-        if not error and canvas_email:
+        # 2. Azure AD Disable
+        if not error or "no encontrado en Canvas" in error:
             try:
-                teams_users = await graph.get("/users", params={"$filter": f"userPrincipalName eq '{canvas_email}'"})
-                if teams_users and isinstance(teams_users.get("value"), list) and len(teams_users["value"]) > 0:
-                    t_user_id = teams_users["value"][0]["id"]
-                    await graph.patch(f"/users/{t_user_id}", {"accountEnabled": False})
-                    teams_suspended = True
+                ms_user = await graph.get_user_by_email(correo)
+                if ms_user:
+                    await graph.patch(f"/users/{ms_user['id']}", {"accountEnabled": False})
                 else:
-                    error = "Creado OK en Canvas, pero no encontrado en Teams"
-            except Exception as te:
-                error = f"Creado OK en Canvas, Error Teams: {te}"
-
-        # calculate absolute row and column addresses
-        abs_r = start_row + r_idx
-        abs_col_desv = start_col + col_desvinculado
-
-        async def patch_cell(c, val):
-            try:
-                await graph.patch(
-                    f"/shares/{encoded_url}/driveItem/workbook/worksheets('{req.sheet_name}')/cell(row={abs_r},column={c})",
-                    {"values": [[val]]}
-                )
+                    if error:
+                        error += " | No en Azure AD"
+                    else:
+                        error = "No encontrado en Azure AD"
             except Exception as e:
-                pass 
-
-        if not error or "Creado OK" in str(error):
-            result.succeeded.append({"cedula": cedula, "nombre": canvas_email})
-            await patch_cell(abs_col_desv, "✅")
+                error = error + f" | Error Azure: {str(e)}" if error else f"Error Azure: {str(e)}"
+        
+        if error and error != "Usuario no encontrado en Canvas | No en Azure AD":
+            ws.cell(row=r_idx, column=col_enviado, value=f"Error: {error}")
+            result.failed.append({"correo": correo, "error": error})
         else:
-            result.failed.append({"input": {"cedula": cedula}, "error": error})
-            await patch_cell(abs_col_desv, f"❌ Error: {error}")
+            ws.cell(row=r_idx, column=col_enviado, value="OK (Eliminado)")
+            result.succeeded.append({"correo": correo})
 
-    tasks = []
-    empty_count = 0
-    for r_idx in range(header_r_idx + 1, len(values)):
-        row = values[r_idx]
-        
-        def get_val(c_idx):
-            if c_idx is not None and c_idx < len(row):
-                return str(row[c_idx] or "").strip()
-            return ""
-
-        cedula_val = get_val(col_cedula)
-        
-        if not cedula_val:
-            empty_count += 1
-            if empty_count > 10:
-                break
-            continue
-            
-        empty_count = 0
-        tasks.append(process_row(r_idx, row))
-        
-    if len(tasks) > 50:
-        raise HTTPException(status_code=400, detail=f"Límite de seguridad excedido: Intentas procesar {len(tasks)} alumnos a la vez (Máximo 50 permitidos). Revisa el archivo para evitar accidentes.")
-
-    batch_size = 5
-    for i in range(0, len(tasks), batch_size):
-        await asyncio.gather(*tasks[i:i+batch_size])
+    # Guardar y subir
+    if len(users_to_process) > 0:
+        out_io = io.BytesIO()
+        wb.save(out_io)
+        out_io.seek(0)
+        try:
+            await graph.put_raw(f"/shares/{encoded_url}/driveItem/content", out_io.read())
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"No se pudo guardar el archivo actualizado en OneDrive. {e}")
 
     return result
