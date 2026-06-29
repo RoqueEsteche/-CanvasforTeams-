@@ -1379,9 +1379,9 @@ async def import_egreso_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
         # 2. Azure AD Disable
         if not error or "no encontrado en Canvas" in error:
             try:
-                ms_user = await graph.get_user_by_email(correo)
-                if ms_user:
-                    await graph.patch(f"/users/{ms_user['id']}", {"accountEnabled": False})
+                ms_users = await graph.search_users(correo)
+                if ms_users:
+                    await graph.patch(f"/users/{ms_users[0]['id']}", {"accountEnabled": False})
                 else:
                     if error:
                         error += " | No en Azure AD"
