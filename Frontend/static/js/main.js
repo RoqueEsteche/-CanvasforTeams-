@@ -1213,6 +1213,11 @@ function openExcelDiplomados() {
           <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
           <input type="url" class="form-control" id="diplomadoUrl" placeholder="https://instituto-my.sharepoint.com/..." required>
         </div>
+        <label class="form-label fw-bold">Nombre de la Pestaña (Requerido)</label>
+        <div class="input-group mb-3">
+          <span class="input-group-text"><i class="bi bi-file-spreadsheet"></i></span>
+          <input type="text" class="form-control" id="diplomadoSheet" placeholder="Ej: Diplomado de Prueba" required>
+        </div>
       </div>
     </div>
   `;
@@ -1226,8 +1231,10 @@ function openExcelDiplomados() {
 
 async function doUploadDiplomados() {
   const urlInput = document.getElementById('diplomadoUrl').value.trim();
-  if (!urlInput) {
-    toast('Por favor, ingresa una URL válida de OneDrive.', 'warning');
+  const sheetInput = document.getElementById('diplomadoSheet').value.trim();
+  
+  if (!urlInput || !sheetInput) {
+    toast('Por favor, ingresa la URL y el nombre de la pestaña.', 'warning');
     return;
   }
   
@@ -1236,7 +1243,7 @@ async function doUploadDiplomados() {
   toast("Conectando con OneDrive y procesando, esto puede tardar un poco...", "info");
   
   try {
-    const res = await api.post('/excel/diplomados', { url: urlInput });
+    const res = await api.post('/excel/diplomados', { url: urlInput, sheet_name: sheetInput });
     toast(`Sincronización exitosa. ${res.succeeded?.length || 0} alumnos procesados.`, 'success');
     bootstrap.Modal.getInstance(document.getElementById('globalModal')).hide();
   } catch (e) {

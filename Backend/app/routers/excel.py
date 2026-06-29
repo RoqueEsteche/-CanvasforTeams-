@@ -812,6 +812,7 @@ async def template_unified_enrollment():
 
 class DiplomadosUrlRequest(BaseModel):
     url: str
+    sheet_name: str
 
 import base64
 
@@ -840,8 +841,11 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
     _ACCOUNT_LOCAL = settings.canvas_account_id
     result = BulkResult()
 
-    # Buscar en cada hoja
-    for sheet_name in wb.sheetnames:
+    if req.sheet_name not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail=f"La pestaña '{req.sheet_name}' no existe en el archivo. Las disponibles son: {', '.join(wb.sheetnames)}")
+
+    # Buscar en la hoja especificada
+    for sheet_name in [req.sheet_name]:
         ws = wb[sheet_name]
         
         header_row_idx = None
