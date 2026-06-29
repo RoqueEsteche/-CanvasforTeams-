@@ -837,12 +837,19 @@ async def get_diplomados_sheets(req: UrlOnlyRequest) -> list[str]:
     
     encoded_url = _encode_share_url(req.url)
     try:
-        sheets_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets")
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"No se pudieron cargar las pestanas. {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
 
-    values = sheets_data.get("value", [])
-    return [s.get("name") for s in values if s.get("name")]
+    try:
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True)
+        sheets = wb.sheetnames
+        wb.close()
+        return sheets
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
 
 @router.post("/excel/egreso/sheets", response_model=list[str])
 async def get_egreso_sheets(req: UrlOnlyRequest) -> list[str]:
@@ -851,12 +858,19 @@ async def get_egreso_sheets(req: UrlOnlyRequest) -> list[str]:
     
     encoded_url = _encode_share_url(req.url)
     try:
-        sheets_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets")
+        contents = await graph.get_raw(f"/shares/{encoded_url}/driveItem/content")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"No se pudieron cargar las pestanas. {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo descargar el archivo. {e}")
 
-    values = sheets_data.get("value", [])
-    return [s.get("name") for s in values if s.get("name")]
+    try:
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(contents), read_only=True)
+        sheets = wb.sheetnames
+        wb.close()
+        return sheets
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El archivo no es un Excel válido.")
 @router.post("/excel/diplomados/preview", response_model=PreviewResponse)
 async def preview_diplomados_onedrive(req: DiplomadosUrlRequest) -> PreviewResponse:
     if not req.url or "http" not in req.url:
