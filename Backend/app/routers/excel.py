@@ -1129,7 +1129,7 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                 # Verificar si el archivo est├í bloqueado antes de empezar a procesar alumnos
                 await graph.put_raw(f"/shares/{encoded_url}/driveItem/content", contents)
             except Exception as e:
-                raise HTTPException(status_code=400, detail="El archivo Excel est├í abierto. Por favor, ci├®rralo completamente en tu navegador o Excel antes de sincronizar.")
+                raise HTTPException(status_code=400, detail=f"El archivo Excel está abierto o el enlace es de Solo Lectura. Detalle real: {e}")
 
         batch_size = 5
         for i in range(0, len(tasks), batch_size):
@@ -1377,7 +1377,7 @@ async def _import_egreso_onedrive_inner(req: DiplomadosUrlRequest) -> BulkResult
             # Verificar si el archivo está bloqueado
             await graph.put_raw(f"/shares/{encoded_url}/driveItem/content", contents)
         except Exception as e:
-            raise HTTPException(status_code=400, detail="El archivo Excel está abierto. Por favor, ciérralo completamente en tu navegador o Excel antes de sincronizar.")
+            raise HTTPException(status_code=400, detail=f"El archivo Excel está abierto o el enlace es de Solo Lectura. Detalle real: {e}")
 
     for user_data in users_to_process:
         correo = user_data["correo"]
