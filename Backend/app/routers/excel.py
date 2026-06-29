@@ -979,7 +979,18 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                 result.failed.append({"input": {"cedula": cedula}, "error": error})
 
         tasks = []
+        empty_count = 0
         for r_idx in range(header_row_idx + 1, ws.max_row + 1):
+            nombre_val = str(ws.cell(row=r_idx, column=col_nombre).value or "").strip()
+            cedula_val = str(ws.cell(row=r_idx, column=col_cedula).value or "").strip()
+            
+            if not nombre_val and not cedula_val:
+                empty_count += 1
+                if empty_count > 10:
+                    break
+                continue
+                
+            empty_count = 0
             tasks.append(process_row(r_idx))
             
         batch_size = 5
