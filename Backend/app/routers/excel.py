@@ -1066,6 +1066,8 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
                 except Exception as e:
                     if "already exists" not in str(e).lower() and "Request_BadRequest" not in str(e):
                         error = str(e)
+                    else:
+                        error = "Ya existía en Azure AD" 
             
             email_sent = False
             if not error and correo and correo != "None":
@@ -1088,7 +1090,7 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
             elif not error and (not correo or correo == "None"):
                 error = "Creado OK, pero no hay correo asignado"
             
-            if not error or "Creado OK" in str(error):
+            if not error or "Creado OK" in str(error) or "Ya existía" in str(error):
                 ws.cell(row=r_idx, column=col_usuario, value=login_id)
                 ws.cell(row=r_idx, column=col_contra, value=pwd)
                 result.succeeded.append({"cedula": cedula, "nombre": creds["full_name"], "login_id": login_id})
@@ -1174,13 +1176,14 @@ async def import_diplomados_onedrive(req: DiplomadosUrlRequest) -> BulkResult:
             login_ids_to_add = [s.get("login_id") for s in result.succeeded if s.get("login_id")]
             for login_id in login_ids_to_add:
                 try:
-                    user_data = await graph.get("/users", params={"$filter": f"userPrincipalName eq '{login_id}'", "$select": "id"})
-                    if user_data and user_data.get("value"):
-                        uid = user_data["value"][0]["id"]
+                    user_data = await graph.get(f"/users/{login_id}", params={"$select": "id"})
+                    if user_data and user_data.get("id"):
+                        uid = user_data["id"]
                         # Adding user to group
                         await graph.post(f"/groups/{group_id}/members/$ref", {"@odata.id": f"https://graph.microsoft.com/v1.0/directoryObjects/{uid}"})
                 except Exception as e:
-                    pass
+                    if "already exist" not in str(e).lower():
+                        print(f"Error añadiendo {login_id} al grupo: {e}")
         # --- FIN NUEVA LÓGICA ---
 
     output = io.BytesIO()
