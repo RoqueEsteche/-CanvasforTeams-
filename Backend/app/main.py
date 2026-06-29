@@ -10,6 +10,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 # Configure logging before imports
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://7dbdeba1deaf1093168df2821f89aa1a@o4511649123270656.ingest.us.sentry.io/4511649133101056",
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -96,6 +104,11 @@ if STATIC_DIR.exists():
 
 # Setup templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
+    return {"message": "You will never see this"}
 
 
 # Health check endpoints
