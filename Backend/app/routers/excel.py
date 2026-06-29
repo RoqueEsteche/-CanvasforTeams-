@@ -852,7 +852,7 @@ async def get_egreso_sheets(req: UrlOnlyRequest) -> list[str]:
     encoded_url = _encode_share_url(req.url)
     try:
         sheets_data = await graph.get(f"/shares/{encoded_url}/driveItem/workbook/worksheets")
-    exception as e:
+    except Exception as e:
         raise HTTPException(status_code=400, detail=f"No se pudieron cargar las pestanas. {e}")
 
     values = sheets_data.get("value", [])
