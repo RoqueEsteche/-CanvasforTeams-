@@ -1366,8 +1366,8 @@ async def _import_egreso_onedrive_inner(req: DiplomadosUrlRequest) -> BulkResult
             "cedula": str(ws.cell(row=row_idx, column=col_cedula).value or "").strip() if col_cedula else ""
         })
 
-    if len(users_to_process) > settings.max_batch_size:
-        raise HTTPException(status_code=400, detail=f"Demasiados registros nuevos pendientes ({len(users_to_process)}). Máximo {settings.max_batch_size} por ejecución.")
+    if len(users_to_process) > 50:
+        raise HTTPException(status_code=400, detail=f"Demasiados registros nuevos pendientes ({len(users_to_process)}). Máximo 50 por ejecución.")
 
     for user_data in users_to_process:
         correo = user_data["correo"]
