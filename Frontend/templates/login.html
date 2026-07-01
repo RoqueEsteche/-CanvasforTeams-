@@ -4,410 +4,446 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Iniciar sesión — USIL Gestión TI</title>
+  
+  <!-- Modern Typography: Outfit for headers, Inter for body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  
   <style>
+    /* ── Base Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #f4f5f7;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       display: flex;
-    }
-
-    /* ── Split layout ── */
-    .lp-split {
-      display: flex;
-      width: 100%;
-      min-height: 100vh;
-    }
-
-    /* ── Left panel ── */
-    .lp-left {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 48px 40px;
-      background: #ffffff;
+      overflow: hidden;
+      background-color: #0d0f18; /* Fallback dark */
     }
 
-    .lp-form {
-      width: 100%;
-      max-width: 400px;
-    }
-
-    .lp-logo {
-      height: 44px;
-      margin-bottom: 40px;
-      display: block;
-    }
-
-    .lp-title {
-      font-size: 1.85rem;
-      font-weight: 700;
-      color: #1a1a2e;
-      margin-bottom: 6px;
-      line-height: 1.2;
-    }
-
-    .lp-subtitle {
-      font-size: .88rem;
-      color: #16C79A;
-      font-weight: 500;
-      margin-bottom: 36px;
-    }
-
-    /* ── Input fields ── */
-    .lp-field {
-      position: relative;
-      margin-bottom: 16px;
-    }
-
-    .lp-field-icon {
+    /* ── Dynamic Aurora Background ── */
+    .aurora-bg {
       position: absolute;
-      left: 15px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #9aa0b5;
-      font-size: 1rem;
+      top: -50%; left: -50%; width: 200%; height: 200%;
+      background: linear-gradient(
+        45deg,
+        #4f2c9e, /* Deep Violet */
+        #241552, /* Dark Purple */
+        #0f5673, /* Deep Teal */
+        #381d7a, /* Indigo */
+        #116c87  /* Ocean Blue */
+      );
+      background-size: 400% 400%;
+      animation: aurora 20s ease-in-out infinite alternate;
+      z-index: 0;
+      filter: blur(80px);
+    }
+    
+    @keyframes aurora {
+      0%   { background-position: 0% 50%; transform: rotate(0deg) scale(1); }
+      50%  { background-position: 100% 50%; transform: rotate(180deg) scale(1.1); }
+      100% { background-position: 0% 50%; transform: rotate(360deg) scale(1); }
+    }
+
+    /* Floating particles for extra dynamic feel */
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      animation: float 15s infinite ease-in-out alternate;
+      z-index: 1;
       pointer-events: none;
     }
+    .p1 { width: 120px; height: 120px; top: 10%; left: 15%; animation-duration: 25s; filter: blur(15px); }
+    .p2 { width: 250px; height: 250px; bottom: 5%; right: 10%; animation-duration: 30s; filter: blur(30px); background: rgba(22, 199, 154, 0.1); }
+    .p3 { width: 80px; height: 80px; top: 40%; right: 25%; animation-duration: 20s; filter: blur(10px); }
 
-    .lp-input {
+    @keyframes float {
+      0%   { transform: translateY(0) translateX(0); }
+      100% { transform: translateY(-80px) translateX(40px); }
+    }
+
+    /* ── Light Glassmorphism Card ── */
+    .glass-container {
+      position: relative;
+      z-index: 10;
       width: 100%;
-      padding: 13px 16px 13px 44px;
-      border: 1.5px solid #e5e8f0;
-      border-radius: 10px;
-      font-size: .9rem;
-      background: #f6f8fe;
-      color: #1a1a2e;
-      outline: none;
-      transition: border-color .2s, box-shadow .2s, background .2s;
+      max-width: 440px;
+      padding: 48px 40px;
+      margin: 20px;
+      
+      /* Glass effect */
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 24px;
+      box-shadow: 
+        0 30px 60px -12px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      
+      /* Entrance animation */
+      animation: cardEnter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
     }
 
-    .lp-input::placeholder { color: #b0b8cc; }
-
-    .lp-input:focus {
-      border-color: #7B5CBF;
-      box-shadow: 0 0 0 3px rgba(123,92,191,.12);
-      background: #fff;
+    @keyframes cardEnter {
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    .lp-eye {
+    /* ── Logo & Typography ── */
+    .logo-container {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    
+    .logo-img {
+      height: 48px;
+      transition: transform 0.3s ease;
+    }
+    .logo-img:hover {
+      transform: scale(1.05);
+    }
+
+    .title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #121420;
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #5c6275;
+      text-align: center;
+      margin-bottom: 32px;
+      font-weight: 400;
+    }
+
+    /* ── Input Fields (Modern Floating Label Style) ── */
+    .input-group {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .input-icon {
       position: absolute;
-      right: 14px;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8c94ab;
+      font-size: 1.1rem;
+      transition: color 0.3s ease;
+      z-index: 2;
+    }
+
+    .modern-input {
+      width: 100%;
+      padding: 16px 16px 16px 48px;
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      color: #1a202c;
+      background: rgba(255, 255, 255, 0.7);
+      outline: none;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .modern-input::placeholder {
+      color: transparent; /* Hidden for floating label effect, or kept light */
+    }
+
+    .modern-input:focus, .modern-input:not(:placeholder-shown) {
+      border-color: #6a45ae;
+      background: #ffffff;
+      box-shadow: 0 4px 15px rgba(106, 69, 174, 0.1);
+    }
+
+    .modern-input:focus ~ .input-icon {
+      color: #6a45ae;
+    }
+
+    /* Floating label */
+    .floating-label {
+      position: absolute;
+      left: 48px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8c94ab;
+      font-size: 0.95rem;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .modern-input:focus ~ .floating-label,
+    .modern-input:not(:placeholder-shown) ~ .floating-label {
+      top: 0;
+      left: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6a45ae;
+      background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 100%);
+      padding: 0 6px;
+    }
+
+    .eye-btn {
+      position: absolute;
+      right: 16px;
       top: 50%;
       transform: translateY(-50%);
       background: none;
       border: none;
+      color: #8c94ab;
+      font-size: 1.1rem;
       cursor: pointer;
-      color: #9aa0b5;
       padding: 4px;
-      font-size: 1rem;
-      line-height: 1;
-      transition: color .15s;
+      transition: color 0.2s;
+      z-index: 2;
     }
-    .lp-eye:hover { color: #7B5CBF; }
+    
+    .eye-btn:hover { color: #6a45ae; }
 
-    /* ── Remember checkbox ── */
-    .lp-remember {
+    /* ── Remember Me ── */
+    .remember-wrapper {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: .86rem;
-      color: #6b7280;
-      margin-bottom: 28px;
+      gap: 10px;
+      margin-bottom: 32px;
       cursor: pointer;
-      -webkit-user-select: none;
       user-select: none;
     }
-    .lp-remember input[type="checkbox"] {
-      width: 16px; height: 16px;
-      accent-color: #7B5CBF;
+    
+    .custom-checkbox {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      position: relative;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .custom-checkbox:checked {
+      background: #6a45ae;
+      border-color: #6a45ae;
+    }
+    
+    .custom-checkbox:checked::after {
+      content: '';
+      position: absolute;
+      left: 6px; top: 2px;
+      width: 5px; height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    
+    .remember-text {
+      font-size: 0.9rem;
+      color: #475569;
+      font-weight: 500;
     }
 
-    /* ── Login button ── */
-    .lp-btn {
+    /* ── Primary SSO Button (Azure AD) ── */
+    .btn-sso {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 12px;
       width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #7B5CBF 0%, #5A3A9C 50%, #3E2778 100%);
-      color: #fff;
+      padding: 16px;
+      background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+      color: #ffffff;
       text-decoration: none;
       border: none;
-      border-radius: 10px;
-      font-size: .95rem;
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity .2s, transform .15s, box-shadow .2s;
-      box-shadow: 0 4px 16px rgba(90,58,156,.35);
-    }
-    .lp-btn:hover {
-      opacity: .93;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(90,58,156,.45);
-      color: #fff;
-    }
-    .lp-btn:active { transform: translateY(0); }
-
-    .lp-btn-icon { font-size: 1.1rem; }
-
-    /* ── Domain hint ── */
-    .lp-hint {
-      font-size: .77rem;
-      color: #9aa0b5;
-      text-align: center;
-      margin-top: 18px;
-      line-height: 1.5;
-    }
-    .lp-hint strong { color: #7B5CBF; }
-
-    /* ── Right panel ── */
-    .lp-right {
-      width: 44%;
-      background: linear-gradient(145deg, #8E6EC5 0%, #6A45AE 30%, #4F30A0 65%, #3A2285 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      padding: 60px 40px 36px;
-      color: #fff;
-      text-align: center;
       position: relative;
       overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 10px 20px rgba(17, 24, 39, 0.25);
     }
-
-    /* Decorative blobs */
-    .lp-blob {
+    
+    /* Glowing effect on hover */
+    .btn-sso::before {
+      content: '';
       position: absolute;
-      border-radius: 50%;
-      background: rgba(255,255,255,.06);
-      pointer-events: none;
-    }
-    .lp-blob-1 { width: 320px; height: 320px; top: -100px; left: -100px; }
-    .lp-blob-2 { width: 260px; height: 260px; bottom: -80px; right: -70px; }
-    .lp-blob-3 { width: 140px; height: 140px; top: 40%; left: -30px; background: rgba(255,255,255,.04); }
-
-    .lp-deco-header { position: relative; z-index: 1; }
-
-    .lp-deco-title {
-      font-size: 1.65rem;
-      font-weight: 700;
-      line-height: 1.3;
-      margin-bottom: 12px;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.6s ease;
     }
 
-    .lp-deco-text {
-      font-size: .9rem;
-      opacity: .82;
-      max-width: 270px;
-      margin: 0 auto;
-      line-height: 1.55;
+    .btn-sso:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 25px rgba(17, 24, 39, 0.35);
+      background: linear-gradient(135deg, #000000 0%, #111827 100%);
+      color: #ffffff;
+    }
+    
+    .btn-sso:hover::before {
+      left: 100%;
     }
 
-    .lp-illus {
-      position: relative;
-      z-index: 1;
+    .btn-sso:active {
+      transform: translateY(0);
+      box-shadow: 0 5px 10px rgba(17, 24, 39, 0.2);
+    }
+    
+    .sso-icon {
+      font-size: 1.25rem;
+      color: #00a4ef; /* Microsoft Blue */
+    }
+
+    /* Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 28px 0;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .divider::before, .divider::after {
+      content: '';
       flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px 0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .divider::before { margin-right: 15px; }
+    .divider::after { margin-left: 15px; }
+
+    /* ── Hint/Footer ── */
+    .login-hint {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    
+    .login-hint strong {
+      color: #334155;
+      font-weight: 600;
+    }
+    
+    .hint-icon {
+      color: #16c79a;
+      margin-right: 4px;
     }
 
-    .lp-footer-credit {
-      position: relative;
-      z-index: 1;
-      font-size: .78rem;
-      opacity: .6;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+    /* Staggered entry animations for children */
+    .stagger-1 { animation: fadeUp 0.6s ease forwards 0.2s; opacity: 0; transform: translateY(15px); }
+    .stagger-2 { animation: fadeUp 0.6s ease forwards 0.3s; opacity: 0; transform: translateY(15px); }
+    .stagger-3 { animation: fadeUp 0.6s ease forwards 0.4s; opacity: 0; transform: translateY(15px); }
+    .stagger-4 { animation: fadeUp 0.6s ease forwards 0.5s; opacity: 0; transform: translateY(15px); }
+    .stagger-5 { animation: fadeUp 0.6s ease forwards 0.6s; opacity: 0; transform: translateY(15px); }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Responsive ── */
-    @media (max-width: 820px) {
-      .lp-right {
-        display: none;
-      }
-    }
+    /* Responsive */
     @media (max-width: 480px) {
-      .lp-left { padding: 36px 24px; }
+      .glass-container {
+        padding: 40px 24px;
+        margin: 16px;
+        border-radius: 20px;
+      }
+      .title { font-size: 1.8rem; }
     }
   </style>
 </head>
 <body>
 
-<div class="lp-split">
+  <!-- Dynamic Animated Background -->
+  <div class="aurora-bg"></div>
+  <div class="particle p1"></div>
+  <div class="particle p2"></div>
+  <div class="particle p3"></div>
 
-  <!-- ═══════════════ LEFT — Form ═══════════════ -->
-  <div class="lp-left">
-    <div class="lp-form">
-
-      <img src="/static/img/usil-logo.svg" alt="USIL – Universidad San Ignacio de Loyola" class="lp-logo">
-
-      <h1 class="lp-title">¡Bienvenido!</h1>
-      <p class="lp-subtitle">Inicia tu sesión para continuar a USIL Gestión TI</p>
-
-      <!-- Email field -->
-      <div class="lp-field">
-        <i class="bi bi-person lp-field-icon"></i>
-        <input type="email" id="lp-email" class="lp-input"
-               placeholder="correo@usil.edu.py" autocomplete="email"
-               aria-label="Correo institucional">
-      </div>
-
-      <!-- Password field -->
-      <div class="lp-field">
-        <i class="bi bi-lock lp-field-icon"></i>
-        <input type="password" id="lp-pwd" class="lp-input"
-               placeholder="Contraseña" autocomplete="current-password"
-               aria-label="Contraseña">
-        <button class="lp-eye" type="button" onclick="togglePwd()" aria-label="Mostrar/ocultar contraseña">
-          <i class="bi bi-eye" id="lp-eye-icon"></i>
-        </button>
-      </div>
-
-      <!-- Remember -->
-      <label class="lp-remember">
-        <input type="checkbox"> Recordar mi sesión
-      </label>
-
-      <!-- Azure AD login -->
-      <a href="/auth/login" class="lp-btn">
-        <i class="bi bi-microsoft lp-btn-icon"></i>
-        Iniciar sesión con Azure AD
-      </a>
-
-      <p class="lp-hint">
-        <i class="bi bi-shield-lock-fill me-1"></i>
-        Acceso restringido a personal autorizado de USIL.<br>
-        Solo cuentas <strong>@usil.edu.py</strong> tienen acceso.
-      </p>
-
-    </div>
-  </div>
-
-  <!-- ═══════════════ RIGHT — Decorative ═══════════════ -->
-  <div class="lp-right">
-    <div class="lp-blob lp-blob-1"></div>
-    <div class="lp-blob lp-blob-2"></div>
-    <div class="lp-blob lp-blob-3"></div>
-
-    <div class="lp-deco-header">
-      <h2 class="lp-deco-title">¡Qué gusto verte<br>de nuevo!</h2>
-      <p class="lp-deco-text">Inserte sus credenciales para trabajar con nosotros.</p>
+  <!-- Glass Card -->
+  <div class="glass-container">
+    
+    <div class="logo-container stagger-1">
+      <img src="/static/img/usil-logo.svg" alt="USIL" class="logo-img">
     </div>
 
-    <!-- Person illustration -->
-    <div class="lp-illus">
-      <svg viewBox="0 0 280 320" width="240" height="275"
-           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <h1 class="title stagger-1">¡Bienvenido!</h1>
+    <p class="subtitle stagger-1">Inicia tu sesión para continuar a Gestión TI</p>
 
-        <!-- Ground shadow -->
-        <ellipse cx="140" cy="310" rx="78" ry="11" fill="rgba(255,255,255,.18)"/>
+    <!-- Main Azure AD Button (Prominent) -->
+    <a href="/auth/login" class="btn-sso stagger-2">
+      <i class="bi bi-microsoft sso-icon"></i>
+      Iniciar sesión con Azure AD
+    </a>
 
-        <!-- Legs -->
-        <rect x="106" y="224" width="24" height="82" rx="9" fill="#1C2240"/>
-        <rect x="148" y="224" width="24" height="82" rx="9" fill="#1C2240"/>
+    <div class="divider stagger-3">o acceso local</div>
 
-        <!-- Shoes -->
-        <ellipse cx="118" cy="308" rx="20" ry="7" fill="#111730"/>
-        <ellipse cx="160" cy="308" rx="20" ry="7" fill="#111730"/>
-
-        <!-- Jacket / torso -->
-        <path d="M92 155 Q88 175 90 222 Q93 238 140 238 Q187 238 190 222 Q192 175 188 155 Q165 140 140 138 Q115 140 92 155Z" fill="#4A78D8"/>
-
-        <!-- Collar highlight -->
-        <path d="M124 155 L140 178 L156 155 Q148 152 140 151 Q132 152 124 155Z" fill="rgba(255,255,255,.35)"/>
-
-        <!-- Left arm (extended / pointing) -->
-        <path d="M92 178 Q68 188 53 210 Q50 216 55 219 Q60 222 64 216 Q79 196 100 186Z"
-              fill="#4A78D8" stroke="none"/>
-        <!-- Left hand -->
-        <circle cx="52" cy="218" r="8" fill="#F5C9A0"/>
-
-        <!-- Right arm (relaxed) -->
-        <path d="M188 178 Q210 195 212 222 Q212 228 207 228 Q202 228 201 222 Q199 198 182 186Z"
-              fill="#4A78D8"/>
-        <!-- Right hand -->
-        <circle cx="213" cy="226" r="8" fill="#F5C9A0"/>
-
-        <!-- Neck -->
-        <rect x="131" y="126" width="18" height="18" rx="6" fill="#F5C9A0"/>
-
-        <!-- Head -->
-        <ellipse cx="140" cy="107" rx="36" ry="38" fill="#F5C9A0"/>
-
-        <!-- Hair -->
-        <path d="M105 97 Q107 63 140 58 Q173 63 175 97 Q166 74 140 70 Q114 74 105 97Z" fill="#1C2240"/>
-        <rect x="105" y="93" width="9" height="22" rx="5" fill="#1C2240"/>
-        <rect x="166" y="93" width="9" height="22" rx="5" fill="#1C2240"/>
-
-        <!-- Eyebrows -->
-        <path d="M122 96 Q130 92 136 95" stroke="#1C2240" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-        <path d="M144 95 Q150 92 158 96" stroke="#1C2240" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-
-        <!-- Eyes whites -->
-        <ellipse cx="129" cy="107" rx="6" ry="6.5" fill="white"/>
-        <ellipse cx="151" cy="107" rx="6" ry="6.5" fill="white"/>
-        <!-- Pupils -->
-        <circle cx="130" cy="108" r="3.5" fill="#1C2240"/>
-        <circle cx="152" cy="108" r="3.5" fill="#1C2240"/>
-        <!-- Eye shine -->
-        <circle cx="131.5" cy="106.5" r="1.2" fill="white"/>
-        <circle cx="153.5" cy="106.5" r="1.2" fill="white"/>
-
-        <!-- Nose -->
-        <path d="M137 117 Q140 122 143 117" stroke="#D4956A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-
-        <!-- Smile -->
-        <path d="M127 128 Q140 140 153 128" stroke="#C47D5E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-
-        <!-- Speech bubble — checkmark -->
-        <rect x="170" y="48" width="72" height="68" rx="14" fill="#4DBBEE"/>
-        <path d="M185 82 L202 99 L235 68"
-              stroke="white" stroke-width="7.5" fill="none"
-              stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- Tail -->
-        <polygon points="180,114 166,134 204,114" fill="#4DBBEE"/>
-
-      </svg>
+    <!-- Local Login (Decorative/Future) -->
+    <div class="input-group stagger-4">
+      <i class="bi bi-envelope input-icon"></i>
+      <input type="email" id="lp-email" class="modern-input" placeholder=" " autocomplete="email">
+      <label class="floating-label">Correo institucional</label>
     </div>
 
-    <p class="lp-footer-credit">
-      © 2026 Creado con
-      <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-label="amor">
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#FF6B8A"/>
-      </svg>
-      por Roque Esteche
-    </p>
+    <div class="input-group stagger-4">
+      <i class="bi bi-lock input-icon"></i>
+      <input type="password" id="lp-pwd" class="modern-input" placeholder=" " autocomplete="current-password">
+      <label class="floating-label">Contraseña</label>
+      <button class="eye-btn" type="button" onclick="togglePwd()" aria-label="Mostrar contraseña">
+        <i class="bi bi-eye" id="lp-eye-icon"></i>
+      </button>
+    </div>
+
+    <label class="remember-wrapper stagger-5">
+      <input type="checkbox" class="custom-checkbox">
+      <span class="remember-text">Recordar mi sesión</span>
+    </label>
+
+    <div class="login-hint stagger-5">
+      <i class="bi bi-shield-check hint-icon"></i>
+      Acceso exclusivo para personal autorizado de USIL.<br>
+      Utilice su cuenta <strong>@usil.edu.py</strong>
+    </div>
 
   </div>
 
-</div>
+  <script>
+    function togglePwd() {
+      const inp = document.getElementById('lp-pwd');
+      const icon = document.getElementById('lp-eye-icon');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        inp.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    }
 
-<script>
-function togglePwd() {
-  const inp  = document.getElementById('lp-pwd');
-  const icon = document.getElementById('lp-eye-icon');
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    icon.className = 'bi bi-eye-slash';
-  } else {
-    inp.type = 'password';
-    icon.className = 'bi bi-eye';
-  }
-}
-// Focus email on load for better UX
-document.getElementById('lp-email')?.focus();
-</script>
-
+    // Focus email gently when animation finishes
+    setTimeout(() => {
+      document.getElementById('lp-email')?.focus();
+    }, 1000);
+  </script>
 </body>
 </html>
