@@ -391,59 +391,18 @@
     <p class="subtitle stagger-1">Inicia tu sesión para continuar a Gestión TI</p>
 
     <!-- Main Azure AD Button (Prominent) -->
-    <a href="/auth/login" class="btn-sso stagger-2">
-      <i class="bi bi-microsoft sso-icon"></i>
+    <a href="/auth/login" class="btn-sso stagger-2" style="margin-top: 10px; margin-bottom: 24px; padding: 18px;">
+      <i class="bi bi-microsoft sso-icon" style="font-size: 1.4rem;"></i>
       Iniciar sesión con Azure AD
     </a>
 
-    <div class="divider stagger-3">o acceso local</div>
-
-    <!-- Local Login (Decorative/Future) -->
-    <div class="input-group stagger-4">
-      <i class="bi bi-envelope input-icon"></i>
-      <input type="email" id="lp-email" class="modern-input" placeholder=" " autocomplete="email">
-      <label class="floating-label">Correo institucional</label>
-    </div>
-
-    <div class="input-group stagger-4">
-      <i class="bi bi-lock input-icon"></i>
-      <input type="password" id="lp-pwd" class="modern-input" placeholder=" " autocomplete="current-password">
-      <label class="floating-label">Contraseña</label>
-      <button class="eye-btn" type="button" onclick="togglePwd()" aria-label="Mostrar contraseña">
-        <i class="bi bi-eye" id="lp-eye-icon"></i>
-      </button>
-    </div>
-
-    <label class="remember-wrapper stagger-5">
-      <input type="checkbox" class="custom-checkbox">
-      <span class="remember-text">Recordar mi sesión</span>
-    </label>
-
-    <div class="login-hint stagger-5">
+    <div class="login-hint stagger-3">
       <i class="bi bi-shield-check hint-icon"></i>
-      Acceso exclusivo para personal autorizado de USIL.<br>
+      El acceso está centralizado mediante el Directorio Activo.<br>
       Utilice su cuenta <strong>@usil.edu.py</strong>
     </div>
 
   </div>
 
-  <script>
-    function togglePwd() {
-      const inp = document.getElementById('lp-pwd');
-      const icon = document.getElementById('lp-eye-icon');
-      if (inp.type === 'password') {
-        inp.type = 'text';
-        icon.className = 'bi bi-eye-slash';
-      } else {
-        inp.type = 'password';
-        icon.className = 'bi bi-eye';
-      }
-    }
-
-    // Focus email gently when animation finishes
-    setTimeout(() => {
-      document.getElementById('lp-email')?.focus();
-    }, 1000);
-  </script>
 </body>
 </html>
