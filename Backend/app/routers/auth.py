@@ -11,6 +11,10 @@ router = APIRouter(tags=["Auth"])
 async def login(request: Request):
     return RedirectResponse(url=auth_service.build_auth_url(request))
 
+@router.get("/auth/debug", summary="Debug redirect URI")
+async def debug_auth(request: Request):
+    return {"redirect_uri": auth_service.get_redirect_uri(request), "site_url": settings.site_url}
+
 
 @router.get("/auth/callback", summary="Callback de Azure AD")
 async def callback(request: Request):
