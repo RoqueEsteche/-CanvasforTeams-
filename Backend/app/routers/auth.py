@@ -8,8 +8,8 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.get("/auth/login", summary="Iniciar sesión con Azure AD")
-async def login():
-    return RedirectResponse(url=auth_service.build_auth_url())
+async def login(request: Request):
+    return RedirectResponse(url=auth_service.build_auth_url(request))
 
 
 @router.get("/auth/callback", summary="Callback de Azure AD")
@@ -21,7 +21,7 @@ async def callback(request: Request):
     if not code:
         raise HTTPException(status_code=400, detail="No se recibió el código de autorización")
 
-    user = auth_service.exchange_code(code)
+    user = auth_service.exchange_code(code, request)
     session_token = auth_service.create_session_token(user)
     response = RedirectResponse(url="/ui/profile")
     response.set_cookie(

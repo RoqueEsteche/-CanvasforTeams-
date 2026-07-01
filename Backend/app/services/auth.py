@@ -65,11 +65,18 @@ def validate_session_token(token: str) -> dict[str, Any]:
     return payload
 
 
-def get_redirect_uri() -> str:
+def get_redirect_uri(request: Request = None) -> str:
+    if request:
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.url.hostname)
+        port = request.headers.get("x-forwarded-port", request.url.port)
+        if port and port not in (80, 443) and f":{port}" not in host:
+            host = f"{host}:{port}"
+        return f"{scheme}://{host}/auth/callback"
     return f"{settings.site_url.rstrip('/')}/auth/callback"
 
 
-def build_auth_url() -> str:
+def build_auth_url(request: Request = None) -> str:
     app = ConfidentialClientApplication(
         client_id=settings.azure_client_id,
         client_credential=settings.azure_client_secret,
@@ -78,7 +85,7 @@ def build_auth_url() -> str:
     try:
         return app.get_authorization_request_url(
             scopes=_AUTH_SCOPES,
-            redirect_uri=get_redirect_uri(),
+            redirect_uri=get_redirect_uri(request),
             response_mode="query",
             state="usil-login",
             prompt="select_account",
@@ -87,7 +94,7 @@ def build_auth_url() -> str:
         raise HTTPException(status_code=400, detail=f"Error construyendo la URL de inicio de sesión: {exc}")
 
 
-def exchange_code(code: str) -> dict[str, Any]:
+def exchange_code(code: str, request: Request = None) -> dict[str, Any]:
     app = ConfidentialClientApplication(
         client_id=settings.azure_client_id,
         client_credential=settings.azure_client_secret,
@@ -97,7 +104,7 @@ def exchange_code(code: str) -> dict[str, Any]:
         result = app.acquire_token_by_authorization_code(
             code,
             scopes=_AUTH_SCOPES,
-            redirect_uri=get_redirect_uri(),
+            redirect_uri=get_redirect_uri(request),
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Error al intercambiar el código de Azure AD: {exc}")
