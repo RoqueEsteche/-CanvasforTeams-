@@ -66,13 +66,27 @@ def validate_session_token(token: str) -> dict[str, Any]:
 
 
 def get_redirect_uri(request: Request = None) -> str:
+    # Si SITE_URL no es localhost, confiamos en él explícitamente
+    if settings.site_url and "localhost" not in settings.site_url and "127.0.0.1" not in settings.site_url:
+        return f"{settings.site_url.rstrip('/')}/auth/callback"
+        
     if request:
         scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        # Use HTTP_HOST or X-Forwarded-Host, fallback to request.url.hostname
         host = request.headers.get("x-forwarded-host", request.url.hostname)
-        port = request.headers.get("x-forwarded-port", request.url.port)
-        if port and port not in (80, 443) and f":{port}" not in host:
-            host = f"{host}:{port}"
+        port = request.headers.get("x-forwarded-port")
+        
+        # Local development uses the actual request port
+        if host in ("localhost", "127.0.0.1") and request.url.port:
+            return f"{scheme}://{host}:{request.url.port}/auth/callback"
+            
+        # Cloud/Proxy with explicit forwarded port
+        if port and port not in ("80", "443"):
+            return f"{scheme}://{host}:{port}/auth/callback"
+            
+        # Standard cloud production (e.g. Railway 443)
         return f"{scheme}://{host}/auth/callback"
+
     return f"{settings.site_url.rstrip('/')}/auth/callback"
 
 
